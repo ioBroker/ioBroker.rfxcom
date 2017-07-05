@@ -36,7 +36,7 @@
     "comName":          "",
     "connTimeout":      600000,
     "baudRate":         57600,
-    "inclusionTimeout": 300000,
+    "inclusionTimeout": 300,
     "devices":    []
   },
   "objects": [

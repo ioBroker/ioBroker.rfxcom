@@ -5,18 +5,25 @@
 // you have to require the utils module and call adapter function
 var utils        = require(__dirname + '/lib/utils'); // Get common adapter utils
 var rfxcom       = require('rfxcom');
-var RTY          = require(__dirname + '/lib/rty');
 
 var adapter      = utils.adapter('rfxcom');
 var channels     = {};
+var Device       = {
+    RFY:       require(__dirname + '/lib/rfy'),
+    Lighting3: require(__dirname + '/lib/lighting3'),
+    Curtain1:  require(__dirname + '/lib/curtain1'),
+    Lighting1: require(__dirname + '/lib/lighting1')
+};
 
 var inclusionOn  = false;
-var inclusionTimeout = false;
+var inclusionTimeout = null;
 var lastReceived = {};
 var repairInterval = null;
 var connection   = null;
 var comm;
-var rtyDevices   = {};
+var devices      = {};
+var rfyAll       = null;
+var stateTasks   = [];
 
 adapter.on('message', function (obj) {
     if (obj) {
@@ -45,20 +52,26 @@ adapter.on('message', function (obj) {
             case 'program':
                 // find or create device with such DeviceID
                 if (obj.message) {
-                    var id = adapter.namespace + '.' + (obj.message.type || 'rty') + '.' + obj.message.deviceId + '_' + obj.message.unitCode;
-                    if (rtyDevices[id]) {
-                        rtyDevices[id].program(function (err) {
+                    var id = adapter.namespace + '.' + (obj.message.type || 'rfy') + '.' + obj.message.deviceId + '_' + obj.message.unitCode;
+                    if (devices[id]) {
+                        devices[id].program(function (err, response, seqnbr) {
                             if (err) {
                                 adapter.log.error('Cannot program "' + id + '": ' + err);
                             }
                             if (obj.callback) {
                                 adapter.sendTo(obj.from, obj.command, [{result: err}], obj.callback);
                             }
+                            // request list of devices
+                            rfyAll.listRemotes(function (err, resp, seqNr) {
+                                if (err) {
+                                    adapter.log.error('Cannot ask listRemotes: ' + err);
+                                }
+                            });
                         });
                     } else {
-                        if (obj.message.type === 'RTY') {
+                        if (Device[obj.message.type]) {
                             // create device
-                            var device = new RTY(comm, {
+                            var device = new Device[obj.message.type](comm, {
                                 deviceId: obj.message.deviceId + '/' + obj.message.unitCode,
                                 subtype:  obj.message.subtype
                             }, adapter.log);
@@ -70,8 +83,100 @@ adapter.on('message', function (obj) {
                                 if (obj.callback) {
                                     adapter.sendTo(obj.from, obj.command, [{result: err}], obj.callback);
                                 }
+                                // request list of devices
+                                rfyAll.listRemotes(function (err, resp, seqNr) {
+                                    if (err) {
+                                        adapter.log.error('Cannot ask listRemotes: ' + err);
+                                    }
+                                });
                             });
                             device = null;
+                        }
+                    }
+                }
+                break;
+
+            case 'erase':
+                // find or create device with such DeviceID
+                if (obj.message) {
+                    if (obj.message.type !== 'RFY') {
+                        if (obj.callback) {
+                            adapter.sendTo(obj.from, obj.command, [{result: 'Only RFY devices can be erased'}], obj.callback);
+                        }
+                        return;
+                    }
+                    var idd = adapter.namespace + '.' + (obj.message.type || 'rfy') + '.' + obj.message.deviceId + '_' + obj.message.unitCode;
+                    if (devices[idd]) {
+                        devices[idd].erase(function (err) {
+                            if (err) {
+                                adapter.log.error('Cannot erase "' + id + '": ' + err);
+                            }
+                            if (obj.callback) {
+                                adapter.sendTo(obj.from, obj.command, [{result: err}], obj.callback);
+                            }
+                            // request list of devices
+                            rfyAll.listRemotes(function (err, resp, seqNr) {
+                                if (err) {
+                                    adapter.log.error('Cannot ask listRemotes: ' + err);
+                                }
+                            });
+                        });
+                    } else {
+                        if (Device[obj.message.type]) {
+                            // create device
+                            var ddevice = new Device[obj.message.type](comm, {
+                                deviceId: obj.message.deviceId + '/' + obj.message.unitCode,
+                                subtype:  obj.message.subtype
+                            }, adapter.log);
+
+                            ddevice.erase(function(err) {
+                                if (err) {
+                                    adapter.log.error('Cannot erase "' + id + '": ' + err);
+                                }
+                                if (obj.callback) {
+                                    adapter.sendTo(obj.from, obj.command, [{result: err}], obj.callback);
+                                }
+                                // request list of devices
+                                rfyAll.listRemotes(function (err, resp, seqNr) {
+                                    if (err) {
+                                        adapter.log.error('Cannot ask listRemotes: ' + err);
+                                    }
+                                });
+                            });
+                            ddevice = null;
+                        }
+                    }
+                }
+                break;
+
+            case 'eraseAll':
+                // find or create device with such DeviceID
+                if (obj.message) {
+                    if (obj.message.type !== 'RFY') {
+                        if (obj.callback) {
+                            adapter.sendTo(obj.from, obj.command, [{result: 'Only RFY devices can be erased'}], obj.callback);
+                        }
+                        return;
+                    }
+                    if (rfyAll) {
+                        rfyAll.eraseAll(function (err) {
+                            if (err) {
+                                adapter.log.error('Cannot eraseAll "' + id + '": ' + err);
+                            }
+                            if (obj.callback) {
+                                adapter.sendTo(obj.from, obj.command, [{result: err}], obj.callback);
+                            }
+
+                            // request list of devices
+                            rfyAll.listRemotes(function (err, resp, seqNr) {
+                                if (err) {
+                                    adapter.log.error('Cannot ask listRemotes: ' + err);
+                                }
+                            });
+                        });
+                    } else {
+                        if (obj.callback) {
+                            adapter.sendTo(obj.from, obj.command, [{result: 'no connection to RfxCom'}], obj.callback);
                         }
                     }
                 }
@@ -87,9 +192,12 @@ adapter.on('message', function (obj) {
 function setConnState(isConnected) {
     if (isConnected !== connection) {
         connection = isConnected;
-        console.log.info('State: ' + isConnected ? 'connected' : 'disconnected');
-
-        adapter.setState('info.connection', isConnected, true);
+        if (adapter && adapter.log) {
+            adapter.log.info('State: ' + isConnected ? 'connected' : 'disconnected');
+        }
+        if (adapter && adapter.setState) {
+            adapter.setState('info.connection', isConnected, true);
+        }
     }
 }
 
@@ -126,7 +234,7 @@ adapter.on('stateChange', function (id, state) {
     } else if (channels[channel].device.commands.indexOf(command) === -1) {
         adapter.log.warn('Unknown command "' + command + '" for "' + channel + '"');
     } else {
-        channels[channel].device.sendCommand(command, function (err) {
+        channels[channel].device.sendCommand(command, state.val, function (err) {
             if (err) {
                 adapter.log.error('Cannot control "' + command + '" for "' + channel + '": ' + err);
             } else {
@@ -142,11 +250,7 @@ adapter.on('objectChange', function (id, obj) {
         if (states[id])       delete states[id];
         if (lastReceived[id]) delete lastReceived[id];
     } else {
-        if (obj.type === 'state') {
-            states[id] = obj;
-        } else if (obj.type === 'channel') {
-            //if (obj.native.autoRepair !== undefined) obj.native.autoRepair = parseInt(obj.native.autoRepair, 10) || 0;
-
+        if (obj.type === 'channel') {
             if (obj.native.autoRepair) {
                 lastReceived[id] = new Date().getTime();
             } else if (lastReceived[id]) {
@@ -166,19 +270,21 @@ function setInclusionState(val) {
     val = val === 'true' || val === true || val === 1 || val === '1';
     inclusionOn = val;
 
-    if (inclusionTimeout) clearTimeout(inclusionTimeout);
+    if (inclusionTimeout) {
+        clearTimeout(inclusionTimeout);
+    }
     inclusionTimeout = null;
 
     if (inclusionOn && adapter.config.inclusionTimeout) {
         inclusionTimeout = setTimeout(function () {
             inclusionOn = false;
             adapter.setState('inclusionOn', false, true);
-        }, adapter.config.inclusionTimeout);
+        }, adapter.config.inclusionTimeout * 1000);
     }
 }
 
 var supportedEvents = {
-    security1:  processEvents, // Emitted when an X10 or similar security device reports a status change.
+    security1:  processEvents,  // Emitted when an X10 or similar security device reports a status change.
     bbq1:       processSensors, // Emitted when a message is received from a Maverick ET-732 BBQ temperature sensor.
     temprain1:  processSensors, // Emitted when a message is received from an Allecto temperature/rainfall weather sensor.
     temp1:      processSensors, // Emitted when a message is received from a temperature sensor (inside/outside air temperature; pool water temperature).
@@ -236,7 +342,6 @@ var supportedEvents = {
     rfxsensor:  processEvents, // Emitted when a message is received from an RFXCOM rfxsensor device.
     lighting1:  processLighting1, // Emitted when a message is received from X10, ARC, Energenie or similar lighting remote control devices.
     lighting2:  processLighting2, // Emitted when a message is received from AC/HomeEasy type remote control devices.
-    lighting3:  processEvents, // ??
     lighting4:  processLighting4, // Emitted when a message is received from devices using the PT2262 family chipset.
     lighting5:  processLighting5, // Emitted when a message is received from LightwaveRF/Siemens type remote control devices.
     lighting6:  processLighting6, // Emitted when a message is received from Blyss lighting remote control devices.
@@ -270,40 +375,72 @@ function processEvents(event, data) {
     adapter.log.debug('[' + event + ']: ' + JSON.stringify(data));
 }
 
-function processLighting1(event, data) {
-    // evt.rssi
-    // evt.housecode
-    // evt.commandNumber
-    // evt.unitcode
+function syncStates(isChanged) {
+    if (!stateTasks || !stateTasks.length) {
+        return;
+    }
+    var task = stateTasks.shift();
 
-    var val = false;
-    switch (data.commandNumber) {
-        case 0:
-        case 5:
-            val = false;
-            break;
+    if (typeof task.val === 'object' && task.val !== null && task.val !== undefined) {
+        task.val = task.val.toString();
+    }
+    if (isChanged) {
+        adapter.setForeignStateChanged(task.id, task.val, true, function () {
+            setTimeout(syncStates, 0, isChanged);
+        });
+    } else {
+        adapter.setForeignState(task.id, task.val, true, function () {
+            setTimeout(syncStates, 0, isChanged);
+        });
+    }
+}
 
-        case 1:
-        case 6:
-            val = true;
-            break;
-
-        case 2:
-            val = "Dim";
-            break;
-
-        case 3:
-            val = "Bright";
-            break;
-
-        case 7:    // ignore it here => doorbell
-            return;
-
-        default:
-            adapter.log.warn("Unrecognised Lighting1 command " + data.commandNumber.toString(16));
-            return;
+function getDevice(deviceId, unitCode, type, subType) {
+    for (var id in channels) {
+        if (channels.hasOwnProperty(id) && channels[id].native.deviceId === deviceId  && channels[id].native.unitCode === unitCode) {
+            if (!devices[id] && Device[type]) {
+                devices[id] = new Device[type](deviceId + '/' + unitCode, subType);
+            }
+            return channels[id];
+        }
     }
 
+    if (inclusionOn) {
+        if (Device[type]) {
+            var prefix = adapter.namespace + '.' + type + '.';
+            var idd = prefix + deviceId + '_' + unitCode;
+
+            subType = Device[type].subTypes[subType];
+            if (subType === undefined) {
+                adapter.log.warn('Unknown device subType for "' + type + '": ' + subType);
+            } else {
+                devices[idd] = new Device[type](comm, {
+                    deviceId: deviceId + '/' + unitCode,
+                    subtype:  subType
+                }, adapter.log);
+
+                syncObjects(devices[idd].getObjects(prefix));
+            }
+        } else {
+            adapter.log.warn('Unknown device type: ' + type);
+        }
+    } else {
+        return null;
+    }
+}
+
+function processLighting1(event, data) {
+    event = event[0].toUpperCase() + event.substring(1);
+    var dev = getDevice(data.housecode, data.unitcode, event, data.subtype);
+
+    if (dev) {
+        var isStart = !stateTasks.length;
+        stateTasks = stateTasks.concat(dev.device.getStates(adapter.namespace + '.' + event + '.', data));
+        if (isStart) syncStates(true);
+
+    } else {
+        adapter.log.debug(event + ' ignored: ' + JSON.stringify(data));
+    }
 }
 
 function processLighting2(event, data) {
@@ -372,7 +509,7 @@ function processLighting5(event, data) {
                 case 17:
                 case 18:
                 case 19:
-                    adapter.log.warn("Unrecognised Lighting5 LightwaveRF command " + data.commandNumber.toString(16));
+                    adapter.log.warn('Unrecognised Lighting5 LightwaveRF command ' + data.commandNumber.toString(16));
                     break;
 
                 default:
@@ -417,7 +554,7 @@ function processLighting5(event, data) {
                     break;
 
                 default:
-                    adapter.log.warn("Unrecognised Lighting5 TRC02 command " + data.commandNumber.toString(16));
+                    adapter.log.warn('Unrecognised Lighting5 TRC02 command ' + data.commandNumber.toString(16));
                     return;
             }
             break;
@@ -514,9 +651,40 @@ function syncObjects(objs, callback) {
     });
 }
 
+var responseCodes = [
+    "ACK - transmit OK",
+    "ACK - transmit delayed",
+    "NAK - transmitter did not lock onto frequency",
+    "NAK - AC address not allowed",
+    "Command unknown or not supported by this device",
+    "Unknown RFY remote ID",
+    "Timed out waiting for response"
+];
+
+function device2string(device) {
+    var id = parseInt(device.deviceId, 16);
+    id = id.toString(16);
+    if (id.length < 2) {
+        id = '00000' + id;
+    } else if (id.length < 3) {
+        id = '0000' + id;
+    } else if (id.length < 4) {
+        id = '000' + id;
+    } else if (id.length < 5) {
+        id = '00' + id;
+    } else if (id.length < 6) {
+        id = '0' + id;
+    }
+    id = '0x' + id.substring(0, 6);
+    id += '/' + parseInt(device.unitCode, 10);
+    return id;
+}
+
 function start() {
     comm = new rfxcom.RfxCom(adapter.config.comName, {debug: true});
-
+    comm.debugLog = function (text) {
+        adapter.log.debug('[rfxcom] ' + text);
+    };
     comm.on('ready', function () {
         setConnState(true);
     });
@@ -532,7 +700,7 @@ function start() {
     });
 
     comm.on('response', function (desc, sequenceNum, responseCode) {
-        adapter.log.debug('Response: ' + desc + ', ' + sequenceNum + ', ' + responseCode);
+        adapter.log.debug('Response: ' + desc + ', SeqNr: ' + sequenceNum + ', ' + (responseCodes[responseCode] ? responseCodes[responseCode] : '0x' + responseCode.toString(16)));
     });
 
     comm.on('receive', function (data) {
@@ -541,6 +709,31 @@ function start() {
 
     comm.on('status', function (status) {
         adapter.log.debug('JSON Status: ' + JSON.stringify(status));
+    });
+
+    comm.on('rfyremoteslist', function (list) {
+        adapter.log.debug('rfyremoteslist delivered ' + list.length + ' devices');
+        if (list) {
+            for (var d = 0; d < list.length; d++) {
+                var found = false;
+                // try to find this device
+                for (var dd = 0; dd < adapter.config.devices.length; dd++) {
+                    if (list[d].deviceId === device2string(adapter.config.devices[dd])) {
+                        found = true;
+                        adapter.config.devices[dd].found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    adapter.log.warn('Device "' + list[d].deviceId + '" found in RfxCom, but not found in the configuration');
+                }
+            }
+            for (var ddd = 0; ddd < adapter.config.devices.length; ddd++) {
+                if (!adapter.config.devices[ddd].found) {
+                    adapter.log.warn('Device "' + adapter.config.devices[ddd].name + '(' + device2string(adapter.config.devices[ddd]) + ') ' + '" found in configuration, but not found in the RfxCom');
+                }
+            }
+        }
     });
 
     for (var event in supportedEvents) {
@@ -554,18 +747,31 @@ function start() {
 
     comm.initialise(function () {
         adapter.log.info('RfxCom initialised on ' + comm.device);
+        rfyAll && rfyAll.listRemotes(function (err, resp, seqNr) {
+            if (err) {
+                adapter.log.error('Cannot ask listRemotes: ' + err);
+            }
+        });
     });
+
+    rfyAll = new rfxcom.Rfy(comm, 'RFY');
 
     var objs = [];
 
-    // create rty devices
-    for (var d = 0; d < adapter.config.devices; d++) {
-        rtyDevices[adapter.namespace + '.rty.' + adapter.config.devices[d].deviceId + '_' + adapter.config.devices[d].unitCode] = new RTY(comm, {
-            deviceId: adapter.config.devices[d].deviceId + '/' + adapter.config.devices[d].unitCode,
-            subtype:  adapter.config.devices[d].subtype
-        }, adapter.log);
+    // create rfy devices
+    for (var d = 0; d < adapter.config.devices.length; d++) {
+        if (Device[adapter.config.devices[d].type]) {
+            var prefix = adapter.namespace + '.' + adapter.config.devices[d].type + '.';
+            var id = prefix + adapter.config.devices[d].deviceId + '_' + adapter.config.devices[d].unitCode;
+            devices[id] = new Device[adapter.config.devices[d].type](comm, {
+                deviceId: adapter.config.devices[d].deviceId + '/' + adapter.config.devices[d].unitCode,
+                subtype:  adapter.config.devices[d].subType
+            }, adapter.log);
 
-        objs = objs.concat(objs, device.getObjects(adapter.namespace + '.rty.', adapter.config.devices[d].name));
+            objs = objs.concat(objs, devices[id].getObjects(prefix, adapter.config.devices[d].name));
+        } else {
+            adapter.log.warn('Unknown device type: ' + adapter.config.devices[d].type);
+        }
     }
 
     syncObjects(objs);
@@ -580,29 +786,26 @@ function main() {
 
     adapter.setState('info.connection', false, true);
 
-    // there are two types of devices: rty (only write) and all others
+    // there are two types of devices: rfy (only write) and all others
 
     // read current existing objects
-    adapter.getForeignObjects(adapter.namespace + '.*', 'state', function (err, _states) {
-        states = _states;
-        adapter.getForeignObjects(adapter.namespace + '.*', 'channel', function (err, _channels) {
-            channels = _channels;
+    adapter.getForeignObjects(adapter.namespace + '.*', 'channel', function (err, _channels) {
+        channels = _channels;
 
-            // subscribe on changes
-            adapter.subscribeStates('*');
-            adapter.subscribeObjects('*');
+        // subscribe on changes
+        adapter.subscribeStates('*');
+        adapter.subscribeObjects('*');
 
-            /*for (var id in channels) {
-                if (!channels.hasOwnProperty(id)) continue;
+        /*for (var id in channels) {
+            if (!channels.hasOwnProperty(id)) continue;
 
-                if (channels[id].native.autoRepair) lastReceived[id] = new Date().getTime();
-            }*/
+            if (channels[id].native.autoRepair) lastReceived[id] = new Date().getTime();
+        }*/
 
-            if (adapter.config.comName) {
-                start();
-            } else {
-                adapter.log.warn('No COM port defined');
-            }
-        });
+        if (adapter.config.comName) {
+            start();
+        } else {
+            adapter.log.warn('No COM port defined');
+        }
     });
 }

@@ -15,9 +15,9 @@ systemDictionary = {
     "Connection timeout:":  {"en": "Connection timeout:", "de": "Verbindungs-Timeout:", "ru": "Таймаут соединения:"},
     "ms":                   {"en": "ms",                "de": "ms",                 "ru": "мс"},
     "inclusion help":       {
-        "en": "ms (Set to 0 for manually control)",
-        "de": "ms (Setzte auf 0 um manuell zu steuern)",
-        "ru": "мс (Установите в ноль для ручного вкл./выключения"
+        "en": "sec (Set to 0 for manually control)",
+        "de": "Sek (Setzte auf 0 um manuell zu steuern)",
+        "ru": "сек (Установите в ноль для ручного вкл./выключения"
     },
     "Inclusion mode timeout:": {"en": "Inclusion mode timeout:", "de": "Anlernen-Timeout:", "ru": "Время для присваивания адресов:"},
     "Enable inclusion mode": {"en": "Enable inclusion mode", "de": "Anlernen-Modus aktivieren", "ru": "Включить режим присваивания адресов"},

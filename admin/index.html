@@ -95,7 +95,7 @@
     var problems = [];
     var timers   = [];
     var availableVersion = null;
-    var fwLink   = '';
+    var isAlive  = false;
 
     function getComPorts(actualValue) {
         timeout = setTimeout(function () {
@@ -481,40 +481,24 @@
             });
         }, 1000);
 
-        getIsAdapterAlive(function (isAlive) {
-
-            if (isAlive || common.enabled) {
-                $('#not-started').hide();
-                $('#flash_default').prop('disabled', false);
-                getComPorts(settings.comName);
-
-                var $dropZone = $('#tabs-3');
-                if (typeof(window.FileReader) !== 'undefined' && !$dropZone.data('installed')) {
-                    $dropZone.data('installed', true);
-                    var $dz = $('#drop-zone');
-                    $('#drop-text').html(_('Drop the files here'));
-                    $dropZone[0].ondragover = function() {
-                        $dz.unbind('click');
-                        $dz.show();
-                        return false;
-                    };
-                    $dz.click(function () {
-                        $dz.hide();
+        getIsAdapterAlive(function (_isAlive) {
+            isAlive = _isAlive || common.enabled;
+            if (isAlive) {
+                $('.button-erase-all').button().click(function () {
+                    confirmMessage(_('All RFY Devices will be deleted from RfxCom!'), _('Are you sure?'), 'question', function (result) {
+                        if (result) {
+                            sendTo(null, 'eraseAll', null, function (result) {
+                                if (result && result.result) {
+                                    showMessage(_(result.result), _('Result'));
+                                }
+                            });
+                        }
                     });
-
-                    $dz[0].ondragleave = function() {
-                        $dz.hide();
-                        return false;
-                    };
-
-                    $dz[0].ondrop = fileHandler;
-                }
-                $('#flashFile').change(fileHandler);
-
-
+                });
+                $('#not-started').hide();
+                getComPorts(settings.comName);
             } else {
-                $('#flashFile').prop('disabled', true);
-                $('#flash_default').prop('disabled', true);
+                $('.button-erase-all').prop('disabled', true);
                 $('#not-started').show();
             }
         });
@@ -525,7 +509,7 @@
                     var namespace = 'rfxcom.' + instance + '.';
                     var len = namespace.length;
                     for (var id in _values) {
-                        if (id.substring(0, len) === namespace) {
+                        if (_values.hasOwnProperty(id) && id.substring(0, len) === namespace) {
                             values[id] = _values[id];
                         }
                     }
@@ -673,11 +657,23 @@
     }
 
     function tableEvents(id, elem, command) {
+        if (!isAlive) {
+            showMessage(_('Fisrt start the instance'), _('Message'), 'alert');
+            return;
+        }
         if (command === 'pair') {
-
+            sendTo(null, 'program', elem, function (result) {
+                if (result && result.result) {
+                    showMessage(_(result.result), _('Result'));
+                }
+            });
         } else
         if (command === 'unpair') {
-
+            sendTo(null, 'erase', elem, function (result) {
+                if (result && result.result) {
+                    showMessage(_(result.result), _('Result'));
+                }
+            });
         }
     }
 
@@ -741,6 +737,7 @@
             </table>
         </div>
         <div id="tabs-3" style="width: 100%; height: calc(100% - 40px); overflow-x: hidden; overflow-y: auto; padding: 0">
+            <button class="button-erase-all" style="margin-left: 10px"></button>
             <div id="values" style="width: 100%; height: calc(100% - 230px)">
                 <button class="table-button-add" style="margin-left: 10px; width: 1.5em; height: 1.5em"></button>
                 <div style="width: 100%; height: calc(100% - 30px); overflow: auto;">
@@ -749,7 +746,7 @@
                         <tr>
                             <th data-name="_index"   style="width: 40px" class="translate"></th>
                             <th data-name="name"     style="width: 30%" class="translate">Name</th>
-                            <th data-name="type"     style="width: 100px" data-type="select" data-options="RFY;Lighting3;Curtain" class="translate">Type</th>
+                            <th data-name="type"     style="width: 100px" data-type="select" data-options="RFY;Lighting3;Curtain1" class="translate">Type</th>
                             <th data-name="deviceId" style="width: 60px" class="translate" title="Device ID for RFY or House code for Curtain or System code for lighting 3">Device ID</th>
                             <th data-name="unitCode" style="width: 30px" class="translate" title="Unit code for RFY and Curtain or channel code for Lighting3">Code</th>
                             <th data-name="subType"  style="width: 100px" data-type="select" data-options="RFY;RFYEXT;ASA" class="translate">Sub-type</th>
