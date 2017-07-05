@@ -12,7 +12,8 @@ var Device       = {
     RFY:       require(__dirname + '/lib/rfy'),
     Lighting3: require(__dirname + '/lib/lighting3'),
     Curtain1:  require(__dirname + '/lib/curtain1'),
-    Lighting1: require(__dirname + '/lib/lighting1')
+    Lighting1: require(__dirname + '/lib/lighting1'),
+    Weight:    require(__dirname + '/lib/weight')
 };
 
 var inclusionOn  = false;
@@ -331,8 +332,8 @@ var supportedEvents = {
     uv1:        processSensors, // Emiied when data arrives from ultraviolet radiation sensors
     uv2:        processSensors, // Emiied when data arrives from ultraviolet radiation sensors
     uv3:        processSensors, // Emiied when data arrives from ultraviolet radiation sensors
-    weight1:    processSensors, // Emitted when a message is received from a weighing scale device.
-    weight2:    processSensors, // Emitted when a message is received from a weighing scale device.
+    weight1:    processWeight, // Emitted when a message is received from a weighing scale device.
+    weight2:    processWeight, // Emitted when a message is received from a weighing scale device.
     elec1:      processEnergy, // Emitted when data is received from OWL or REVOLT electricity monitoring devices.
     elec2:      processEnergy, // Emitted when data is received from OWL or REVOLT electricity monitoring devices.
     elec3:      processEnergy, // Emitted when data is received from OWL or REVOLT electricity monitoring devices.
@@ -340,8 +341,8 @@ var supportedEvents = {
     elec5:      processEnergy, // Emitted when data is received from OWL or REVOLT electricity monitoring devices.
     rfxmeter:   processEvents, // Emitted whan a message is received from an RFXCOM rfxmeter device.
     rfxsensor:  processEvents, // Emitted when a message is received from an RFXCOM rfxsensor device.
-    lighting1:  processLighting1, // Emitted when a message is received from X10, ARC, Energenie or similar lighting remote control devices.
-    lighting2:  processLighting2, // Emitted when a message is received from AC/HomeEasy type remote control devices.
+    lighting1:  processLighting, // Emitted when a message is received from X10, ARC, Energenie or similar lighting remote control devices.
+    lighting2:  processLighting, // Emitted when a message is received from AC/HomeEasy type remote control devices.
     lighting4:  processLighting4, // Emitted when a message is received from devices using the PT2262 family chipset.
     lighting5:  processLighting5, // Emitted when a message is received from LightwaveRF/Siemens type remote control devices.
     lighting6:  processLighting6, // Emitted when a message is received from Blyss lighting remote control devices.
@@ -429,7 +430,7 @@ function getDevice(deviceId, unitCode, type, subType) {
     }
 }
 
-function processLighting1(event, data) {
+function processLighting(event, data) {
     event = event[0].toUpperCase() + event.substring(1);
     var dev = getDevice(data.housecode, data.unitcode, event, data.subtype);
 
@@ -441,37 +442,6 @@ function processLighting1(event, data) {
     } else {
         adapter.log.debug(event + ' ignored: ' + JSON.stringify(data));
     }
-}
-
-function processLighting2(event, data) {
-    // data.rssi
-    // data.housecode
-    // data.commandNumber
-    // data.unitcode
-    // data.subtype
-
-    var val = false;
-    switch (data.commandNumber) {
-        case 0:
-        case 3:
-            val = false;
-            break;
-
-        case 1:
-        case 4:
-            val = true;
-            break;
-
-        case 2:
-        case 5:
-            val = data.level / 15 * 100;
-            break;
-
-        default:
-            adapter.log.warn("Unrecognised Lighting2 command " + data.commandNumber.toString(16));
-            return;
-    }
-
 }
 
 function processLighting5(event, data) {
@@ -613,6 +583,20 @@ function processSensors(event, data) {
     // evt.forecast
 
     adapter.log.debug('[' + event + ']: ' + JSON.stringify(data));
+}
+
+function processWeight(event, data) {
+    event = event.replace(/\d$/, '');
+    var dev = getDevice(data.housecode, data.unitcode, event, data.subtype);
+
+    if (dev) {
+        var isStart = !stateTasks.length;
+        stateTasks = stateTasks.concat(dev.device.getStates(adapter.namespace + '.' + event + '.', data));
+        if (isStart) syncStates(true);
+
+    } else {
+        adapter.log.debug(event + ' ignored: ' + JSON.stringify(data));
+    }
 }
 
 function processEnergy(event, data) {
