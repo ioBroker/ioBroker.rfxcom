@@ -1,0 +1,49 @@
+{
+  "name": "iobroker.rfxcom",
+  "version": "1.1.3",
+  "description": "ioBroker RFLink Adapter",
+  "author": {
+    "name": "bluefox",
+    "email": "dogafox@gmail.com"
+  },
+  "contributors": [
+    {
+      "name": "Bluefox",
+      "email": "dogafox@gmail.com"
+    }
+  ],
+  "homepage": "https://github.com/ioBroker/ioBroker.rfxcom",
+  "license": "MIT",
+  "keywords": [
+    "ioBroker",
+    "rfxcom",
+    "Smart Home",
+    "home automation"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ioBroker/ioBroker.rfxcom"
+  },
+  "dependencies": {
+    "rfxcom": "^0.16.0",
+    "serialport": "4.*"
+  },
+  "devDependencies": {
+    "grunt": "^0.4.5",
+    "grunt-replace": "^0.9.3",
+    "grunt-contrib-jshint": "^0.11.2",
+    "grunt-jscs": "^2.0.0",
+    "grunt-http": "^1.6.0",
+    "mocha": "^2.3.4",
+    "chai": "^3.4.1",
+    "nan": "2.4.0"
+  },
+  "bugs": {
+    "url": "https://github.com/ioBroker/ioBroker.rfxcom/issues"
+  },
+  "main": "main.js",
+  "scripts": {
+    "test": "node node_modules/mocha/bin/mocha"
+  },
+  "readmeFilename": "README.md"
+}
