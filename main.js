@@ -55,29 +55,8 @@ adapter.on('message', function (obj) {
                 if (obj.message) {
                     var id = adapter.namespace + '.' + (obj.message.type || 'rfy') + '.' + obj.message.deviceId + '_' + obj.message.unitCode;
                     if (devices[id]) {
-                        devices[id].program(function (err, response, seqnbr) {
-                            if (err) {
-                                adapter.log.error('Cannot program "' + id + '": ' + err);
-                            }
-                            if (obj.callback) {
-                                adapter.sendTo(obj.from, obj.command, [{result: err}], obj.callback);
-                            }
-                            // request list of devices
-                            rfyAll.listRemotes(function (err, resp, seqNr) {
-                                if (err) {
-                                    adapter.log.error('Cannot ask listRemotes: ' + err);
-                                }
-                            });
-                        });
-                    } else {
-                        if (Device[obj.message.type]) {
-                            // create device
-                            var device = new Device[obj.message.type](comm, {
-                                deviceId: obj.message.deviceId + '/' + obj.message.unitCode,
-                                subtype:  obj.message.subtype
-                            }, adapter.log);
-
-                            device.program(function(err) {
+                        if (connection) {
+                            devices[id].program(function (err, response, seqnbr) {
                                 if (err) {
                                     adapter.log.error('Cannot program "' + id + '": ' + err);
                                 }
@@ -91,7 +70,39 @@ adapter.on('message', function (obj) {
                                     }
                                 });
                             });
-                            device = null;
+                        } else {
+                            adapter.sendTo(obj.from, obj.command, [{result: 'No connection to RfxCom'}], obj.callback);
+                        }
+                    } else {
+                        if (connection) {
+                            if (Device[obj.message.type]) {
+                                // create device
+                                var device = new Device[obj.message.type](comm, {
+                                    deviceId: obj.message.deviceId + '/' + obj.message.unitCode,
+                                    subtype: obj.message.subtype
+                                }, adapter.log);
+
+                                device.program(function (err) {
+                                    if (err) {
+                                        adapter.log.error('Cannot program "' + id + '": ' + err);
+                                    }
+                                    if (obj.callback) {
+                                        adapter.sendTo(obj.from, obj.command, [{result: err}], obj.callback);
+                                    }
+                                    // request list of devices
+                                    rfyAll.listRemotes(function (err, resp, seqNr) {
+                                        if (err) {
+                                            adapter.log.error('Cannot ask listRemotes: ' + err);
+                                        }
+                                    });
+                                });
+                                device = null;
+                            } else {
+                                adapter.log.error('Unknown type "' + obj.message.type + '"');
+                                adapter.sendTo(obj.from, obj.command, [{result: 'Unknown type "' + obj.message.type + '"'}], obj.callback);
+                            }
+                        } else {
+                            adapter.sendTo(obj.from, obj.command, [{result: 'No connection to RfxCom'}], obj.callback);
                         }
                     }
                 }
@@ -230,12 +241,12 @@ adapter.on('stateChange', function (id, state) {
     var command = parts.pop();
     var channel = parts.join('.');
 
-    if (!channels[channel] || !channels[channel].device) {
+    if (!channels[channel] || !devices[channel]) {
         adapter.log.warn('Unknown device "' + channel + '"');
-    } else if (channels[channel].device.commands.indexOf(command) === -1) {
+    } else if (devices[channel].commands.indexOf(command) === -1) {
         adapter.log.warn('Unknown command "' + command + '" for "' + channel + '"');
     } else {
-        channels[channel].device.sendCommand(command, state.val, function (err) {
+        devices[channel].sendCommand(command, state.val, function (err) {
             if (err) {
                 adapter.log.error('Cannot control "' + command + '" for "' + channel + '": ' + err);
             } else {
@@ -666,9 +677,11 @@ function device2string(device) {
 
 function start() {
     comm = new rfxcom.RfxCom(adapter.config.comName, {debug: true});
+
     comm.debugLog = function (text) {
         adapter.log.debug('[rfxcom] ' + text);
     };
+
     comm.on('ready', function () {
         setConnState(true);
     });
