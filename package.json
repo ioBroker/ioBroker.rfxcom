@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "rfxcom": "^0.16.0",
-    "serialport": "8.*"
+    "serialport": "^8.*"
   },
   "devDependencies": {
     "grunt": "^0.4.5",
