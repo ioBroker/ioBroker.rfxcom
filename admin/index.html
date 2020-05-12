@@ -120,7 +120,7 @@
                     $('#comName').prop('disabled', true);
                     break;
                 } else {
-                    text += '<option value="' + list[j].comName + '" ' + ((actualValue === list[j].comName) ? 'selected' : '') + '>' + list[j].comName + '</option>';
+                    text += '<option value="' + list[j].path + '" ' + ((actualValue === list[j].path) ? 'selected' : '') + '>' + list[j].path + '</option>';
                 }
             }
             $('#comName').html(text);
