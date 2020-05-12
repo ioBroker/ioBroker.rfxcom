@@ -25,7 +25,7 @@
     "url": "https://github.com/ioBroker/ioBroker.rfxcom"
   },
   "dependencies": {
-    "rfxcom": "^0.16.0",
+    "rfxcom": "^2.1.1",
     "serialport": "^8.*"
   },
   "devDependencies": {
