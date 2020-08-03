@@ -4,11 +4,8 @@ os:
 sudo: required
 language: node_js
 node_js:
-  - '0.10'
-  - '0.12'
-  - '4'
-  - '6'
-  - '7'
+  - '10'
+  - '12'
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then export CC=clang++; export CXX=clang++; export CXXFLAGS=-std=c++11; fi
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then export CXX=g++-4.8; fi

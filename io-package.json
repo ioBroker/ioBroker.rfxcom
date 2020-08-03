@@ -1,15 +1,27 @@
 {
   "common": {
     "name": "rfxcom",
-    "version": "0.2.0",
+    "version": "1.0.0",
     "news": {
+      "1.0.0": {
+        "en": "Compact mode\nSupport of node 10 added\nRefactoring",
+        "de": "Kompakter Modus\nUnterstützung von Knoten 10 hinzugefügt\nRefactoring",
+        "ru": "Компактный режим\nДобавлена поддержка узла 10\nРефакторинг",
+        "pt": "Modo compacto\nSuporte do nó 10 adicionado\nReestruturação",
+        "nl": "Compacte modus\nOndersteuning van knooppunt 10 toegevoegd\nRefactoring",
+        "fr": "Mode compact\nPrise en charge du nœud 10 ajoutée\nRefactoring",
+        "it": "Modalità compatta\nSupporto del nodo 10 aggiunto\nrefactoring",
+        "es": "Modo compacto\nSoporte del nodo 10 agregado\nRefactorización",
+        "pl": "Tryb kompaktowy\nDodano obsługę węzła 10\nRefaktoryzacja",
+        "zh-cn": "紧凑模式\n添加了对节点10的支持\n重构"
+      },
       "0.2.0": {
         "en": "initial commit",
         "de": "Erste Version",
         "ru": "Первая версия"
       }
     },
-    "title": "RfxCom adapter",
+    "title": "RfxCom",
     "desc": {
       "en": "ioBroker RfxCom Adapter",
       "de": "ioBroker RfxCom Adapter",
@@ -27,6 +39,7 @@
       "RfxCom",
       "433Mhz"
     ],
+    "compact": true,
     "readme":     "https://github.com/ioBroker/ioBroker.rfxcom/blob/master/README.md",
     "loglevel":   "info",
     "stopBeforeUpdate": true,

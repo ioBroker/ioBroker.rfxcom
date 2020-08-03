@@ -1,6 +1,6 @@
 {
   "name": "iobroker.rfxcom",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "ioBroker RFLink Adapter",
   "author": {
     "name": "bluefox",
@@ -25,25 +25,26 @@
     "url": "https://github.com/ioBroker/ioBroker.rfxcom"
   },
   "dependencies": {
-    "rfxcom": "^0.16.0",
-    "serialport": "4.*"
+    "@iobroker/adapter-core": "^2.4.0",
+    "rfxcom": "^2.3.1",
+    "serialport": "^8.0.8"
   },
   "devDependencies": {
-    "grunt": "^0.4.5",
-    "grunt-replace": "^0.9.3",
-    "grunt-contrib-jshint": "^0.11.2",
-    "grunt-jscs": "^2.0.0",
-    "grunt-http": "^1.6.0",
-    "mocha": "^2.3.4",
-    "chai": "^3.4.1",
-    "nan": "2.4.0"
+    "@alcalzone/release-script": "^1.6.0",
+    "gulp": "^4.0.2",
+    "mocha": "^8.1.0",
+    "chai": "^4.2.0",
+    "nan": "^2.14.1"
   },
   "bugs": {
     "url": "https://github.com/ioBroker/ioBroker.rfxcom/issues"
   },
   "main": "main.js",
   "scripts": {
-    "test": "node node_modules/mocha/bin/mocha"
+    "test": "npm run test:package && npm run test:unit",
+    "test:package": "mocha test/package --exit",
+    "test:unit": "mocha test/unit --exit",
+    "test:integration": "mocha test/integration --exit"
   },
   "readmeFilename": "README.md"
 }
