@@ -9,3 +9,4 @@ gulpfile.js
 !/package.json
 !/LICENSE
 !/README.md
+!/main.js
