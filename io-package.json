@@ -1,9 +1,9 @@
 {
   "common": {
     "name": "rfxcom",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "news": {
-      "1.0.0": {
+      "1.0.1": {
         "en": "Compact mode\nSupport of node 10 added\nRefactoring",
         "de": "Kompakter Modus\nUnterstützung von Knoten 10 hinzugefügt\nRefactoring",
         "ru": "Компактный режим\nДобавлена поддержка узла 10\nРефакторинг",
@@ -23,9 +23,9 @@
     },
     "title": "RfxCom",
     "desc": {
-      "en": "ioBroker RfxCom Adapter",
-      "de": "ioBroker RfxCom Adapter",
-      "ru": "ioBroker RfxCom драйвер "
+      "en": "RFXtrx433XL USB HA controller",
+      "de": "RFXtrx433XL USB HA controller",
+      "ru": "RFXtrx433XL USB HA controller "
     },
     "platform":   "Javascript/Node.js",
     "mode":       "daemon",
@@ -43,7 +43,12 @@
     "readme":     "https://github.com/ioBroker/ioBroker.rfxcom/blob/master/README.md",
     "loglevel":   "info",
     "stopBeforeUpdate": true,
-    "type":       "hardware"
+    "type":       "hardware",
+    "plugins": {
+      "sentry": {
+        "dsn": "https://33578e7d83974195b1587d59afb3d4ea@sentry.iobroker.net/97"
+      }
+    }
   },
   "native": {
     "comName":          "",

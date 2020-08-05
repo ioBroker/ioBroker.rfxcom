@@ -38,7 +38,7 @@ To do that press the pair button just before inserting the battery and the devic
 **Just now only Somfy, Curtain and Lighting3 devices are supported.**
 
 ## Changelog
-### 1.0.0 (2020-08-03)
+### 1.0.1 (2020-08-05)
 * (bluefox) Compact mode
 * (bluefox) Support of node 10 added
 * (bluefox) Refactoring
