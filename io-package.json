@@ -22,6 +22,9 @@
       }
     },
     "title": "RfxCom",
+    "titleLang": {
+      "en": "RfxCom"
+    },
     "desc": {
       "en": "RFXtrx433XL USB HA controller",
       "de": "RFXtrx433XL USB HA controller",
@@ -39,6 +42,8 @@
       "RfxCom",
       "433Mhz"
     ],
+    "connectionType": "local",
+    "dataSource": "push",
     "compact": true,
     "readme":     "https://github.com/ioBroker/ioBroker.rfxcom/blob/master/README.md",
     "loglevel":   "info",

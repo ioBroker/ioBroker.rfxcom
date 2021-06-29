@@ -110,7 +110,7 @@ function startAdapter(options) {
                                 // read all found serial ports
                                 serialport.list()
                                     .then(ports => {
-                                        adapter.log.info('List of port: ' + JSON.stringify(ports));
+                                        adapter.log.info(`List of port: ${JSON.stringify(ports)}`);
                                         adapter.sendTo(obj.from, obj.command, ports, obj.callback);
                                     })
                                     .catch(e => {
@@ -131,12 +131,12 @@ function startAdapter(options) {
                 case 'program':
                     // find or create device with such DeviceID
                     if (obj.message) {
-                        const id = adapter.namespace + '.' + (obj.message.type || 'rfy') + '.' + obj.message.deviceId + '_' + obj.message.unitCode;
+                        const id = `${adapter.namespace}.${obj.message.type || 'rfy'}.${obj.message.deviceId}_${obj.message.unitCode}`;
                         if (devices[id]) {
                             if (connection) {
                                 devices[id].program((err, response, seqnbr) => {
                                     if (err) {
-                                        adapter.log.error('Cannot program "' + id + '": ' + err);
+                                        adapter.log.error(`Cannot program "${id}": ${err}`);
                                     }
                                     if (obj.callback) {
                                         adapter.sendTo(obj.from, obj.command, [{result: err}], obj.callback);
@@ -159,7 +159,7 @@ function startAdapter(options) {
 
                                     device.program(err => {
                                         if (err) {
-                                            adapter.log.error('Cannot program "' + id + '": ' + err);
+                                            adapter.log.error(`Cannot program "${obj.message.deviceId + '/' + obj.message.unitCode}": ${err}`);
                                         }
                                         if (obj.callback) {
                                             adapter.sendTo(obj.from, obj.command, [{result: err}], obj.callback);
@@ -170,8 +170,8 @@ function startAdapter(options) {
                                     });
                                     device = null;
                                 } else {
-                                    adapter.log.error('Unknown type "' + obj.message.type + '"');
-                                    adapter.sendTo(obj.from, obj.command, [{result: 'Unknown type "' + obj.message.type + '"'}], obj.callback);
+                                    adapter.log.error(`Unknown type "${obj.message.type}"`);
+                                    adapter.sendTo(obj.from, obj.command, [{result: `Unknown type "${obj.message.type}"`}], obj.callback);
                                 }
                             } else {
                                 adapter.sendTo(obj.from, obj.command, [{result: 'No connection to RfxCom'}], obj.callback);
@@ -189,11 +189,11 @@ function startAdapter(options) {
                             }
                             return;
                         }
-                        const idd = adapter.namespace + '.' + (obj.message.type || 'rfy') + '.' + obj.message.deviceId + '_' + obj.message.unitCode;
+                        const idd = `${adapter.namespace}.${obj.message.type || 'rfy'}.${obj.message.deviceId}_${obj.message.unitCode}`;
                         if (devices[idd]) {
                             devices[idd].erase(err => {
                                 if (err) {
-                                    adapter.log.error('Cannot erase "' + id + '": ' + err);
+                                    adapter.log.error(`Cannot erase "${idd}": ${err}`);
                                 }
                                 if (obj.callback) {
                                     adapter.sendTo(obj.from, obj.command, [{result: err}], obj.callback);
@@ -212,7 +212,7 @@ function startAdapter(options) {
 
                                 ddevice.erase(err => {
                                     if (err) {
-                                        adapter.log.error('Cannot erase "' + id + '": ' + err);
+                                        adapter.log.error(`Cannot erase "${obj.message.deviceId + '/' + obj.message.unitCode}": ${err}`);
                                     }
                                     if (obj.callback) {
                                         adapter.sendTo(obj.from, obj.command, [{result: err}], obj.callback);
@@ -239,7 +239,7 @@ function startAdapter(options) {
                         if (rfyAll) {
                             rfyAll.eraseAll(err => {
                                 if (err) {
-                                    adapter.log.error('Cannot eraseAll "' + id + '": ' + err);
+                                    adapter.log.error(`Cannot eraseAll: ${err}`);
                                 }
                                 if (obj.callback) {
                                     adapter.sendTo(obj.from, obj.command, [{result: err}], obj.callback);
@@ -423,7 +423,7 @@ function getDevice(deviceId, unitCode, type, subType) {
 
             subType = Device[type].subTypes[subType];
             if (subType === undefined) {
-                adapter.log.warn('Unknown device subType for "' + type + '": ' + subType);
+                adapter.log.warn(`Unknown device subType for "${type}": ${subType}`);
             } else {
                 devices[idd] = new Device[type](comm, {
                     deviceId: deviceId + '/' + unitCode,
@@ -689,11 +689,11 @@ function start() {
 
     comm.on('connectfailed', () => {
         setConnState(false);
-        adapter.log.error('unable to open the serial port: "' + adapter.config.comName + '"');
+        adapter.log.error(`unable to open the serial port: "${adapter.config.comName}"`);
     });
 
     comm.on('response', (desc, sequenceNum, responseCode) =>
-        adapter.log.debug('Response: ' + desc + ', SeqNr: ' + sequenceNum + ', ' + (responseCodes[responseCode] ? responseCodes[responseCode] : '0x' + responseCode.toString(16))));
+        adapter.log.debug(`Response: ${desc}, SeqNr: ${sequenceNum}, ${responseCodes[responseCode] ? responseCodes[responseCode] : '0x' + responseCode.toString(16)}`));
 
     comm.on('receive', data =>
         adapter.log.debug('Raw data: ' + data.toString()));
@@ -702,7 +702,7 @@ function start() {
         adapter.log.debug('JSON Status: ' + JSON.stringify(status)));
 
     comm.on('rfyremoteslist', list => {
-        adapter.log.debug('rfyremoteslist delivered ' + list.length + ' devices');
+        adapter.log.debug(`rfyremoteslist delivered ${list.length} devices`);
 
         if (list) {
             for (let d = 0; d < list.length; d++) {
@@ -722,7 +722,7 @@ function start() {
 
             for (let ddd = 0; ddd < adapter.config.devices.length; ddd++) {
                 if (!adapter.config.devices[ddd].found) {
-                    adapter.log.warn('Device "' + adapter.config.devices[ddd].name + '(' + device2string(adapter.config.devices[ddd]) + ') ' + '" found in configuration, but not found in the RfxCom');
+                    adapter.log.warn(`Device "${adapter.config.devices[ddd].name}(${device2string(adapter.config.devices[ddd])}) " found in configuration, but not found in the RfxCom`);
                 }
             }
         }
@@ -731,7 +731,7 @@ function start() {
     for (const event in supportedEvents) {
         (function (evt) {
             comm.on(evt, e => {
-                adapter.log.debug('Event "' + evt + '": ' + JSON.stringify(e));
+                adapter.log.debug(`Event "${evt}": ${JSON.stringify(e)}`);
                 supportedEvents[evt](evt, e);
             });
         })(event);

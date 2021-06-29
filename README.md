@@ -12,15 +12,6 @@ Used for receiving the data from weather sensors and wireless power switches.
 
 Read detailed documentation for RfxCom [here](http://www.rfxcom.com/WebRoot/StoreNL2/Shops/78165469/MediaGallery/Downloads/RFXtrx_User_Guide.pdf)
 
-## Prerequisites
-To use serial port on Windows it is VS required to build the binary.
-To use serial port on linux it is build-essential required. To install it just write:
-
-```
-sudo apt-get update
-sudo apt-get install build-essential -y
-```
-
 ## Usage
 To enable the learning of sensors you must activate "Inclusion mode". 
 The inclusion mode by default will be enabled for 5 minutes (300000 ms) and after 5 minutes will be disabled automatically.
@@ -37,7 +28,15 @@ To do that press the pair button just before inserting the battery and the devic
 ## ToDo
 **Just now only Somfy, Curtain and Lighting3 devices are supported.**
 
+<!--
+	Placeholder for the next version (at the beginning of the line):
+	### __WORK IN PROGRESS__
+-->
 ## Changelog
+### __WORK IN PROGRESS__
+* (peterbaumert) update packages
+* (bluefox) Breaking change: no linux with 32 bit support
+
 ### 1.0.1 (2020-08-05)
 * (bluefox) Compact mode
 * (bluefox) Support of node 10 added
