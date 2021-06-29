@@ -68,7 +68,7 @@ function startAdapter(options) {
 
         if (!channels[channel] || !devices[channel]) {
             adapter.log.warn(`Unknown device "${channel}"`);
-        } else if (devices[channel].commands.indexOf(command) === -1) {
+        } else if (!devices[channel].commands.includes(command)) {
             adapter.log.warn(`Unknown command "${command}" for "${channel}"`);
         } else {
             devices[channel].sendCommand(command, state.val, err => {
