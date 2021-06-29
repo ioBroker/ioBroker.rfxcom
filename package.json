@@ -30,6 +30,7 @@
     "serialport": "^9.2.0"
   },
   "devDependencies": {
+    "@iobroker/testing": "^2.4.4",
     "@alcalzone/release-script": "^2.0.0",
     "gulp": "^4.0.2",
     "mocha": "^9.0.1",
@@ -41,10 +42,7 @@
   },
   "main": "main.js",
   "scripts": {
-    "test": "npm run test:package && npm run test:unit",
-    "test:package": "mocha test/package --exit",
-    "test:unit": "mocha test/unit --exit",
-    "test:integration": "mocha test/integration --exit",
+    "test": "node node_modules/mocha/bin/mocha --exit",
     "release": "release-script"
   },
   "readmeFilename": "README.md"
