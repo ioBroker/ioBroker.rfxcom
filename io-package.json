@@ -1,8 +1,20 @@
 {
     "common": {
         "name": "rfxcom",
-        "version": "2.0.0",
+        "version": "2.0.1",
         "news": {
+            "2.0.1": {
+                "en": "update packages\nBreaking change: no linux with 32 bit support",
+                "de": "Pakete aktualisieren\nBreaking Change: kein Linux mit 32-Bit-Unterstützung",
+                "ru": "пакеты обновления\nКритическое изменение: нет Linux с поддержкой 32-битной версии",
+                "pt": "pacotes de atualização\nQuebrando a mudança: sem linux com suporte de 32 bits",
+                "nl": "update pakketten\nBrekende verandering: geen linux met 32 bit-ondersteuning",
+                "fr": "mettre à jour les packages\nChangement de rupture : pas de Linux avec support 32 bits",
+                "it": "pacchetti di aggiornamento\nModifica importante: nessun linux con supporto a 32 bit",
+                "es": "paquetes de actualización\nCambio rotundo: no linux con soporte de 32 bits",
+                "pl": "pakiety aktualizacji\nPrzełomowa zmiana: brak linuxa z obsługą 32 bitów",
+                "zh-cn": "更新包\n重大变化：没有支持 32 位的 linux"
+            },
             "2.0.0": {
                 "en": "update packages\nBreaking change: no linux with 32 bit support",
                 "de": "Pakete aktualisieren\nBreaking Change: kein Linux mit 32-Bit-Unterstützung",
