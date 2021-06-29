@@ -22,7 +22,7 @@ const lastReceived   = {};
 let repairInterval   = null;
 let connection       = null;
 const devices        = {};
-let stateTasks     = [];
+let stateTasks       = [];
 let rfyAll           = null;
 let comm;
 let adapter;
@@ -67,13 +67,13 @@ function startAdapter(options) {
         const channel = parts.join('.');
 
         if (!channels[channel] || !devices[channel]) {
-            adapter.log.warn('Unknown device "' + channel + '"');
+            adapter.log.warn(`Unknown device "${channel}"`);
         } else if (devices[channel].commands.indexOf(command) === -1) {
-            adapter.log.warn('Unknown command "' + command + '" for "' + channel + '"');
+            adapter.log.warn(`Unknown command "${command}" for "${channel}"`);
         } else {
             devices[channel].sendCommand(command, state.val, err => {
                 if (err) {
-                    adapter.log.error('Cannot control "' + command + '" for "' + channel + '": ' + err);
+                    adapter.log.error(`Cannot control "${command}" for "${channel}": ${err}`);
                 } else {
                     adapter.setForeignState(id, false, true);
                 }
@@ -159,7 +159,7 @@ function startAdapter(options) {
 
                                     device.program(err => {
                                         if (err) {
-                                            adapter.log.error(`Cannot program "${obj.message.deviceId + '/' + obj.message.unitCode}": ${err}`);
+                                            adapter.log.error(`Cannot program "${obj.message.deviceId}/${obj.message.unitCode}": ${err}`);
                                         }
                                         if (obj.callback) {
                                             adapter.sendTo(obj.from, obj.command, [{result: err}], obj.callback);
@@ -212,7 +212,7 @@ function startAdapter(options) {
 
                                 ddevice.erase(err => {
                                     if (err) {
-                                        adapter.log.error(`Cannot erase "${obj.message.deviceId + '/' + obj.message.unitCode}": ${err}`);
+                                        adapter.log.error(`Cannot erase "${obj.message.deviceId}/${obj.message.unitCode}": ${err}`);
                                     }
                                     if (obj.callback) {
                                         adapter.sendTo(obj.from, obj.command, [{result: err}], obj.callback);
@@ -271,7 +271,7 @@ function setConnState(isConnected) {
     if (isConnected !== connection) {
         connection = isConnected;
         if (adapter && adapter.log) {
-            adapter.log.info('State: ' + isConnected ? 'connected' : 'disconnected');
+            adapter.log.info('State: ' + (isConnected ? 'connected' : 'disconnected'));
         }
         if (adapter && adapter.setState) {
             adapter.setState('info.connection', isConnected, true);
@@ -382,10 +382,11 @@ function processEvents(event, data) {
     // evt.uv 'UVIndex'
     // evt.forecast
 
-    if (event === 'lighting1')
+    //if (event === 'lighting1') {
+    //
+    //}
 
-
-    adapter.log.debug('[' + event + ']: ' + JSON.stringify(data));
+    adapter.log.debug(`[${event}]: ${JSON.stringify(data)}`);
 }
 
 function syncStates(isChanged) {
@@ -562,14 +563,14 @@ function processLighting6(event, data) {
             break;
 
         default:
-            adapter.log.warn('Unrecognised Lighting6 command ' + data.commandNumber.toString(16));
+            adapter.log.warn(`Unrecognised Lighting6 command ${data.commandNumber.toString(16)}`);
             return;
     }
 }
 
 // PT622
 function processLighting4(event, data) {
-    adapter.log.warn('Unrecognised Lighting4 command ' + JSON.stringify(data));
+    adapter.log.warn(`Unrecognised Lighting4 command ${JSON.stringify(data)}`);
 }
 
 function processSensors(event, data) {
@@ -602,10 +603,11 @@ function processWeight(event, data) {
     if (dev) {
         const isStart = !stateTasks.length;
         stateTasks = stateTasks.concat(dev.device.getStates(adapter.namespace + '.' + event + '.', data));
-        if (isStart) syncStates(true);
-
+        if (isStart) {
+            syncStates(true);
+        }
     } else {
-        adapter.log.debug(event + ' ignored: ' + JSON.stringify(data));
+        adapter.log.debug(`${event} ignored: ${JSON.stringify(data)}`);
     }
 }
 
@@ -716,7 +718,7 @@ function start() {
                     }
                 }
                 if (!found) {
-                    adapter.log.warn('Device "' + list[d].deviceId + '" found in RfxCom, but not found in the configuration');
+                    adapter.log.warn(`Device "${list[d].deviceId}" found in RfxCom, but not found in the configuration`);
                 }
             }
 
