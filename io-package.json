@@ -68,6 +68,7 @@
         ],
         "connectionType": "local",
         "dataSource": "push",
+        "tier": 2,
         "compact": true,
         "readme": "https://github.com/ioBroker/ioBroker.rfxcom/blob/master/README.md",
         "loglevel": "info",
