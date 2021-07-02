@@ -42,17 +42,40 @@
             "0.2.0": {
                 "en": "initial commit",
                 "de": "Erste Version",
-                "ru": "Первая версия"
+                "ru": "Первая версия",
+                "pt": "commit inicial",
+                "nl": "initiële commit",
+                "fr": "validation initiale",
+                "it": "impegno iniziale",
+                "es": "Compromiso inicial",
+                "pl": "początkowe zatwierdzenie",
+                "zh-cn": "初始提交"
             }
         },
         "title": "RfxCom",
         "titleLang": {
-            "en": "RfxCom"
+            "en": "RfxCom",
+            "de": "RfxCom",
+            "ru": "RfxCom",
+            "pt": "RfxCom",
+            "nl": "RfxCom",
+            "fr": "RfxCom",
+            "it": "RfxCom",
+            "es": "RfxCom",
+            "pl": "RfxCom",
+            "zh-cn": "RfxCom"
         },
         "desc": {
             "en": "RFXtrx433XL USB HA controller",
             "de": "RFXtrx433XL USB HA controller",
-            "ru": "RFXtrx433XL USB HA controller "
+            "ru": "RFXtrx433XL USB HA controller ",
+            "pt": "RFXtrx433XL USB HA controlador",
+            "nl": "RFXtrx433XL USB HA-controller",
+            "fr": "Contrôleur USB HA RFXtrx433XL",
+            "it": "Controller HA USB RFXtrx433XL",
+            "es": "Controlador RFXtrx433XL USB HA",
+            "pl": "RFXtrx433XL Kontroler USB HA",
+            "zh-cn": "RFXtrx433XL USB HA 控制器"
         },
         "platform": "Javascript/Node.js",
         "mode": "daemon",
