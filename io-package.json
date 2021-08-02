@@ -96,7 +96,7 @@
         "readme": "https://github.com/ioBroker/ioBroker.rfxcom/blob/master/README.md",
         "loglevel": "info",
         "stopBeforeUpdate": true,
-        "type": "hardware",
+        "type": "iot-systems",
         "plugins": {
             "sentry": {
                 "dsn": "https://33578e7d83974195b1587d59afb3d4ea@sentry.iobroker.net/97"
