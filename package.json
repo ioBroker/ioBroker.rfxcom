@@ -30,7 +30,7 @@
     "serialport": "^9.2.0"
   },
   "devDependencies": {
-    "@iobroker/testing": "^2.4.4",
+    "@iobroker/testing": "^2.5.2",
     "@alcalzone/release-script": "^2.2.1",
     "axios": "^0.21.1",
     "gulp": "^4.0.2",
