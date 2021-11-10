@@ -1,5 +1,6 @@
-/* jshint -W097 */// jshint strict:false
-/*jslint node: true */
+/* jshint -W097 */
+/* jshint strict: false */
+/* jslint node: true */
 'use strict';
 
 // you have to require the utils module and call adapter function
@@ -83,9 +84,12 @@ function startAdapter(options) {
 
     adapter.on('objectChange', (id, obj) => {
         if (!obj) {
-            if (channels[id])     delete channels[id];
-            if (states[id])       delete states[id];
-            if (lastReceived[id]) delete lastReceived[id];
+            if (channels[id])     {
+                delete channels[id];
+            }
+            if (lastReceived[id]) {
+                delete lastReceived[id];
+            }
         } else {
             if (obj.type === 'channel') {
                 if (obj.native.autoRepair) {
@@ -271,7 +275,7 @@ function setConnState(isConnected) {
     if (isConnected !== connection) {
         connection = isConnected;
         if (adapter && adapter.log) {
-            adapter.log.info('State: ' + (isConnected ? 'connected' : 'disconnected'));
+            adapter.log.info(`State: ${isConnected ? 'connected' : 'disconnected'}`);
         }
         if (adapter && adapter.setState) {
             adapter.setState('info.connection', isConnected, true);
