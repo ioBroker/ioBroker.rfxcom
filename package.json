@@ -30,7 +30,7 @@
     "serialport": "^9.2.8"
   },
   "devDependencies": {
-    "@iobroker/testing": "^2.5.2",
+    "@iobroker/testing": "^2.5.3",
     "@alcalzone/release-script": "^3.4.2",
     "@alcalzone/release-script-plugin-iobroker": "^3.5.1",
     "@alcalzone/release-script-plugin-license": "^3.4.1",
