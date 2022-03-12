@@ -109,10 +109,10 @@ function startAdapter(options) {
                 case 'listUart':
                     if (obj.callback) {
                         try {
-                            const serialport = require('serialport');
-                            if (serialport) {
+                            const { SerialPort } = require('serialport');
+                            if (SerialPort) {
                                 // read all found serial ports
-                                serialport.list()
+                                SerialPort.list()
                                     .then(ports => {
                                         adapter.log.info(`List of port: ${JSON.stringify(ports)}`);
                                         adapter.sendTo(obj.from, obj.command, ports, obj.callback);
