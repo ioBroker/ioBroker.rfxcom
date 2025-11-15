@@ -92,7 +92,10 @@
     "platform": "Javascript/Node.js",
     "mode": "daemon",
     "icon": "rfxcom.png",
-    "license": "MIT",
+    "licenseInformation": {
+      "type": "free",
+      "license": "MIT"
+    },
     "enabled": true,
     "messagebox": true,
     "extIcon": "https://raw.githubusercontent.com/ioBroker/ioBroker.rfxcom/master/admin//rfxcom.png",
