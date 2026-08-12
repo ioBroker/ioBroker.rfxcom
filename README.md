@@ -53,6 +53,8 @@ To do that press the pair button just before inserting the battery and the devic
 ### 0.1.0 (2016-07-05)
 * (bluefox) initial commit
 
+[Older changelogs can be found there](CHANGELOG_OLD.md)
+
 ## License
 The MIT License (MIT)
 
