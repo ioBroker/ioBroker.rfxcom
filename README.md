@@ -38,6 +38,10 @@ To do that press the pair button just before inserting the battery and the devic
 -->
 ## Changelog
 
+
+### **WORK IN PROGRESS**
+- (ioBroker-Bot) Adapter requires js-controller >= 6.0.11 now.
+
 ### 2.0.2 (2021-11-10)
 * (bluefox) Fixed error by deleting of object
 
