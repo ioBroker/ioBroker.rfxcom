@@ -98,7 +98,7 @@
     },
     "enabled": true,
     "messagebox": true,
-    "extIcon": "https://raw.githubusercontent.com/ioBroker/ioBroker.rfxcom/master/admin//rfxcom.png",
+    "extIcon": "https://raw.githubusercontent.com/ioBroker/ioBroker.rfxcom/master/admin/rfxcom.png",
     "keywords": [
       "RfxCom",
       "RfxCom",
