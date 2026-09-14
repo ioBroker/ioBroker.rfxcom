@@ -41,7 +41,7 @@
     "inclusion help": "Sek (Setzte auf 0 um manuell zu steuern)",
     "invalid_extension": "Falscher Dateiname! Nur *.hex sind erlaubt.",
     "just <b>now</b>": "gerade <b>jetzt</b>",
-    "ms": "MS",
+    "ms": "ms",
     "not-started": "Adapter ist nicht gestartet. Flashen ist nich möglich",
     "re-pair help": "Falls gleiches Ger't auftaucht, es wird automatisch verbunden",
     "rfxcom adapter settings": "",
