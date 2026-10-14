@@ -12,17 +12,21 @@
                     "style": {
                         "width": "64px"
                     },
+                    "xs": 12,
                     "sm": 12,
                     "md": 2,
-                    "lg": 1
+                    "lg": 2,
+                    "xl": 2
                 },
                 "_header": {
                     "type": "header",
                     "text": "RfxCom adapter settings",
                     "size": 4,
+                    "xs": 12,
                     "sm": 12,
                     "md": 10,
-                    "lg": 11
+                    "lg": 10,
+                    "xl": 10
                 },
                 "comName": {
                     "type": "autocompleteSendTo",
@@ -30,9 +34,11 @@
                     "freeSolo": true,
                     "label": "Com port",
                     "newLine": true,
+                    "xs": 12,
                     "sm": 12,
                     "md": 6,
-                    "lg": 4
+                    "lg": 4,
+                    "xl": 4
                 },
                 "inclusionTimeout": {
                     "type": "number",
@@ -40,9 +46,11 @@
                     "help": "inclusion help",
                     "min": 0,
                     "newLine": true,
+                    "xs": 12,
                     "sm": 12,
                     "md": 6,
-                    "lg": 4
+                    "lg": 4,
+                    "xl": 4
                 },
                 "_inclusionOn": {
                     "type": "state",
@@ -50,9 +58,11 @@
                     "control": "switch",
                     "label": "Inclusion mode",
                     "newLine": true,
+                    "xs": 12,
                     "sm": 12,
                     "md": 6,
-                    "lg": 4
+                    "lg": 4,
+                    "xl": 4
                 }
             }
         },
@@ -75,14 +85,20 @@
                         "ok": "Ok",
                         "cancel": "Cancel"
                     },
+                    "xs": 12,
                     "sm": 12,
                     "md": 6,
-                    "lg": 4
+                    "lg": 4,
+                    "xl": 4
                 },
                 "devices": {
                     "type": "table",
                     "newLine": true,
+                    "xs": 12,
                     "sm": 12,
+                    "md": 12,
+                    "lg": 12,
+                    "xl": 12,
                     "items": [
                         {
                             "type": "text",

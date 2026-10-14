@@ -37,6 +37,9 @@ To do that press the pair button just before inserting the battery and the devic
 	### **WORK IN PROGRESS**
 -->
 ## Changelog
+### **WORK IN PROGRESS**
+* (@GermanBluefox) Added the missing sizes to the settings for all screen widths
+
 ### 3.0.0 (2026-10-14)
 * (bluefox) The adapter was refactored to TypeScript and JsonConfig
 * (bluefox) Breaking change: Node.js >= 22, js-controller >= 6.0.11 and admin >= 7.6.17 are required
