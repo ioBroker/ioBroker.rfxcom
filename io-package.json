@@ -81,6 +81,7 @@
     },
     "enabled": true,
     "messagebox": true,
+    "declareUsedResources": true,
     "extIcon": "https://raw.githubusercontent.com/ioBroker/ioBroker.rfxcom/master/admin/rfxcom.png",
     "keywords": [
       "RfxCom",

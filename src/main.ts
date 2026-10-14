@@ -118,6 +118,20 @@ const RESPONSE_CODES = [
 ];
 
 /** Message of the `program`, `erase` and `eraseAll` commands: one row of the "Control only devices" table */
+/** rfxcom always opens the serial port with this baud rate */
+const BAUD_RATE = 38400;
+
+// Exclusive-resource registry of js-controller 8 (the part used here). The installed types and
+// older controllers do not have it, so it is probed at runtime.
+interface SerialPortResource {
+    port: string;
+    baudRate?: number;
+}
+interface ResourceRegistry {
+    registerUsedResource(type: 'serialPort', data: SerialPortResource): Promise<void>;
+    checkUsedResource?(type: 'serialPort', data?: Partial<SerialPortResource>): Promise<{ instance: string }[]>;
+}
+
 interface DeviceMessage {
     type?: string;
     deviceId: string;
@@ -142,6 +156,8 @@ class RfxcomAdapter extends utils.Adapter {
     private inclusionOn = false;
     private inclusionTimeout: ioBroker.Timeout | null | undefined = null;
     private connection: boolean | null = null;
+    /** The serial port is registered as used resource at js-controller (>= 8) */
+    private portRegistered = false;
     private readonly devices: Record<string, RfxDevice> = {};
     private stateTasks: StateTask[] = [];
     private rfyAll: Rfy | null = null;
@@ -633,13 +649,59 @@ class RfxcomAdapter extends utils.Adapter {
         });
     }
 
-    private start(): void {
+    /** The exclusive-resource API of js-controller 8, or null if the controller does not have it */
+    private resourceRegistry(): ResourceRegistry | null {
+        const registry = this as unknown as Partial<ResourceRegistry>;
+        return typeof registry.registerUsedResource === 'function' ? (registry as ResourceRegistry) : null;
+    }
+
+    /** Warns if another instance holds the serial port. Must be called before the port is opened */
+    private async warnIfPortUsed(): Promise<void> {
+        const registry = this.resourceRegistry();
+        if (!registry?.checkUsedResource) {
+            return;
+        }
+        try {
+            const holders = await registry.checkUsedResource('serialPort', { port: this.config.comName });
+            if (holders.length) {
+                this.log.warn(
+                    `Serial port "${this.config.comName}" is already used by ${holders.map(h => h.instance).join(', ')}. The RfxCom will probably not work.`,
+                );
+            }
+        } catch (e) {
+            this.log.debug(`Cannot check if serial port "${this.config.comName}" is free: ${(e as Error).message}`);
+        }
+    }
+
+    /** Reports the opened serial port to js-controller (>= 8), so it shows up as occupied */
+    private async registerUsedPort(): Promise<void> {
+        const registry = this.resourceRegistry();
+        // the host keeps the entry until the instance stops, so a reconnect does not need a new one
+        if (!registry || this.portRegistered) {
+            return;
+        }
+        this.portRegistered = true;
+        try {
+            await registry.registerUsedResource('serialPort', { port: this.config.comName, baudRate: BAUD_RATE });
+        } catch (e) {
+            this.portRegistered = false;
+            this.log.warn(`Cannot register serial port "${this.config.comName}" as used: ${(e as Error).message}`);
+        }
+    }
+
+    private async start(): Promise<void> {
+        // ask js-controller (>= 8) first, the operating system decides the conflict when the port is opened
+        await this.warnIfPortUsed();
+
         const comm = new RfxCom(this.config.comName, { debug: true });
         this.comm = comm;
 
         comm.debugLog = (text: string): void => this.log.debug(`[rfxcom] ${text}`);
 
-        comm.on('ready', () => this.setConnState(true));
+        comm.on('ready', () => {
+            this.setConnState(true);
+            void this.registerUsedPort();
+        });
 
         comm.on('disconnect', (msg: unknown) => {
             this.log.debug(`Disconnected: ${errorText(msg)}`);
@@ -757,7 +819,7 @@ class RfxcomAdapter extends utils.Adapter {
         await this.subscribeObjectsAsync('*');
 
         if (this.config.comName) {
-            this.start();
+            await this.start();
         } else {
             this.log.warn('No COM port defined');
         }

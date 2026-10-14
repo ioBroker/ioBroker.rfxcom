@@ -65,6 +65,10 @@ There is no `tasks.ts`/`gulpfile.js`: with JsonConfig no build step besides `tsc
 | `program` / `erase` | Pair/Unpair buttons in the devices table | `[{ result: err }]`, message is the table row (`subType`, the old `subtype` is accepted too) |
 | `eraseAll` | "Erase all RFY devices" button, message `{ type: 'RFY' }` | `[{ result: err }]` |
 
+### Used resources (js-controller 8)
+
+`common.declareUsedResources` is `true`: the adapter reports the serial port itself. `start()` first calls `checkUsedResource('serialPort', { port })` and warns if another instance holds it; on the first `ready` of rfxcom the port is registered with `registerUsedResource('serialPort', { port, baudRate: 38400 })`. The host drops the entry when the instance stops, so it is not freed explicitly. The installed `@iobroker/types` do not know this API and js-controller < 8 does not have it, so `resourceRegistry()` probes it at runtime.
+
 ### Not implemented
 
 `processLighting4/5/6`, `processEnergy`, `processBlinds`, `processSensors` and `processEvents` only log. `lighting5`/`lighting6` values were calculated in the JS version but never written.
