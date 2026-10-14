@@ -5,17 +5,15 @@ import type { CommandCallback, DeviceObject, DeviceOptions, RfxDevice, RfxEvent,
 const SUB_TYPES = ['WEIGHT_UNUSED', 'WEIGHT1', 'WEIGHT2'];
 
 export class Weight implements RfxDevice {
+    public static readonly subTypes = SUB_TYPES;
+
     public readonly commands: string[] = [];
-    /** Was `Weight.prototype.subTypes` - an instance attribute, not a static one */
-    public readonly subTypes = SUB_TYPES;
 
     public constructor(
         _comm: RfxCom,
         private readonly options: DeviceOptions,
         log?: ioBroker.Logger,
     ) {
-        // The old constructor returned a half-initialized object in these cases, so the next call of a
-        // method failed with a TypeError. Throwing makes that failure explicit.
         if (!options?.deviceId) {
             log?.warn('No device id is defined');
             throw new Error('No device id is defined');
@@ -27,13 +25,8 @@ export class Weight implements RfxDevice {
         }
     }
 
-    public sendCommand(_cmd: string, level: ioBroker.StateValue | CommandCallback, callback?: CommandCallback): void {
-        if (typeof level === 'function') {
-            callback = level;
-        }
-        if (typeof callback === 'function') {
-            callback('Command not supported');
-        }
+    public sendCommand(_cmd: string, _value: ioBroker.StateValue, callback: CommandCallback): void {
+        callback('Command not supported');
     }
 
     public getObjects(prefix: string, name?: string): DeviceObject[] {
@@ -100,9 +93,9 @@ export class Weight implements RfxDevice {
     }
 
     public getStates(prefix: string, event: RfxEvent): StateTask[] {
-        // data = {
+        // event = {
         //    subtype: data[0],
-        //    id: id,
+        //    id: "0x1234",
         //    seqnbr: data[1],
         //    weight: (data[4] *256 + data[5]) / 10,
         //    rssi: batterySignalLevel & 0x0f,

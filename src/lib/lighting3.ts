@@ -1,15 +1,19 @@
-import { Lighting3 as RfxLighting3, type RfxCom, type TransmitCallback } from 'rfxcom';
+import { Lighting3 as RfxLighting3, lighting3, type RfxCom } from 'rfxcom';
 
 import {
-    callDeviceMethod,
+    callTransmitter,
     isOn,
+    subtypeNumber,
     type CommandCallback,
     type DeviceObject,
     type DeviceOptions,
     type RfxDevice,
 } from './types';
 
-const COMMANDS = ['switchOn', 'switchOff', 'setLevel', 'increaseLevel', 'decreaseLevel'];
+const COMMANDS = ['switchOn', 'switchOff', 'increaseLevel', 'decreaseLevel'];
+
+/** rfxcom uses dim levels 0 - 10, the `level` state is 0 - 100 % */
+const MAX_LEVEL = 10;
 
 export class Lighting3 implements RfxDevice {
     public readonly commands = COMMANDS;
@@ -21,8 +25,6 @@ export class Lighting3 implements RfxDevice {
         private readonly options: DeviceOptions,
         private readonly log?: ioBroker.Logger,
     ) {
-        // The old constructor returned a half-initialized object here, so the next call of a
-        // method failed with a TypeError. Throwing makes that failure explicit.
         if (!options?.deviceId) {
             log?.warn('No device id is defined');
             throw new Error('No device id is defined');
@@ -31,39 +33,34 @@ export class Lighting3 implements RfxDevice {
         // 9 is systemCode from 1 to 16
         // 1 is channelNumber from 1 to 10
 
-        this.device = new RfxLighting3(comm, 'KOPPLA');
+        this.device = new RfxLighting3(comm, subtypeNumber(lighting3, 'KOPPLA'));
     }
 
-    public program(callback: TransmitCallback): void {
+    public program(callback: CommandCallback): void {
         try {
-            // BUG (kept): rfxcom's Lighting3 has no `program()`, this always ends in the catch block
-            callDeviceMethod(this.device, 'program', this.options.deviceId, callback);
+            this.device.program(this.options.deviceId, callback);
         } catch (e) {
             callback(e);
         }
     }
 
-    public sendCommand(cmd: string, level: ioBroker.StateValue | CommandCallback, callback?: CommandCallback): void {
-        if (typeof level === 'function') {
-            callback = level;
-            level = 0;
-        }
-        if (cmd === 'state') {
-            // The old code checked an undefined variable `value` here. This branch cannot be reached,
-            // because `state` is not in `commands`, which main.ts checks first.
-            if (isOn(level)) {
-                this.device.switchOn(this.options.deviceId, callback);
-            } else {
-                this.device.switchOff(this.options.deviceId, callback);
+    public sendCommand(cmd: string, value: ioBroker.StateValue, callback: CommandCallback): void {
+        try {
+            if (cmd === 'state') {
+                if (isOn(value)) {
+                    this.device.switchOn(this.options.deviceId, callback);
+                } else {
+                    this.device.switchOff(this.options.deviceId, callback);
+                }
+            } else if (cmd === 'level' || cmd === 'setLevel') {
+                const level = Math.min(Math.max(Math.round((Number(value) * MAX_LEVEL) / 100), 0), MAX_LEVEL);
+                this.device.setLevel(this.options.deviceId, level, callback);
+            } else if (!COMMANDS.includes(cmd) || !callTransmitter(this.device, cmd, this.options.deviceId, callback)) {
+                this.log?.warn(`Unknown command: ${cmd}`);
+                callback(`Unknown command: ${cmd}`);
             }
-        } else if (cmd === 'setLevel') {
-            this.device.setLevel(this.options.deviceId, Math.round(Number(level) / 10), callback);
-        } else if (!COMMANDS.includes(cmd)) {
-            this.log?.warn(`Unknown command: ${cmd}`);
-            callback?.(`Unknown command: ${cmd}`);
-        } else {
-            // BUG (kept): rfxcom's Lighting3 has no `increaseLevel`/`decreaseLevel`, this throws a TypeError
-            callDeviceMethod(this.device, cmd, this.options.deviceId, callback);
+        } catch (e) {
+            callback(e);
         }
     }
 
@@ -74,7 +71,7 @@ export class Lighting3 implements RfxDevice {
         objs.push({
             _id: id,
             common: {
-                name: name || `RFY Device ${this.options.deviceId}`,
+                name: name || `Lighting 3 ${this.options.deviceId}`,
                 role: 'state',
             },
             type: 'channel',
@@ -84,10 +81,6 @@ export class Lighting3 implements RfxDevice {
         });
 
         for (const command of COMMANDS) {
-            if (command === 'setLevel') {
-                continue;
-            }
-
             objs.push({
                 _id: `${id}.${command}`,
                 common: {

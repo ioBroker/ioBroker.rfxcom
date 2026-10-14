@@ -40,6 +40,11 @@ To do that press the pair button just before inserting the battery and the devic
 ### **WORK IN PROGRESS**
 * (bluefox) The adapter was refactored to TypeScript and JsonConfig
 * (bluefox) Breaking change: Node.js >= 22, js-controller >= 6.0.11 and admin >= 7.6.17 are required
+* (bluefox) Fixed: the subtype was sent as text to the RFXtrx, so all subtypes except the first one (e.g. RFYEXT, ARC) were controlled wrongly
+* (bluefox) Fixed: Lighting1 and Curtain1 devices could not be controlled (wrong device ID format); Curtain1 objects were not created
+* (bluefox) Fixed: received Lighting1/Lighting2/Weight devices crashed the adapter and were never learned; the inclusion mode can be switched on and off now
+* (bluefox) Fixed: the `state` and `level` states of the devices and the venetian blind commands of RFY work now
+* (bluefox) Fixed: pairing of devices that were not saved yet, "All Off"/"All On" of Lighting1 were swapped, the Lighting2 dim level was scaled wrongly
 
 ### 2.0.2 (2021-11-10)
 * (bluefox) Fixed error by deleting of object

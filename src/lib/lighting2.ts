@@ -1,10 +1,9 @@
-// NOTE: This class is not registered in `DEVICES` in main.ts and was never used by the old code either.
-// `lighting2` events end up in `getDevice()` with the type `Lighting2`, which is unknown there.
-import { Lighting2 as RfxLighting2, type RfxCom } from 'rfxcom';
+import { Lighting2 as RfxLighting2, lighting2, type RfxCom } from 'rfxcom';
 
 import {
-    callDeviceMethod,
+    callTransmitter,
     isOn,
+    subtypeNumber,
     type CommandCallback,
     type DeviceObject,
     type DeviceOptions,
@@ -13,14 +12,18 @@ import {
     type StateTask,
 } from './types';
 
+/** Subtype names by the number received in `lighting2` events (same order as in rfxcom) */
 const SUB_TYPES = ['AC', 'HOMEEASY_EU', 'ANSLUT', 'KAMBROOK'];
 
-const COMMANDS = ['switchOn', 'switchOff', 'level'];
+const COMMANDS = ['switchOn', 'switchOff'];
+
+/** rfxcom uses dim levels 0 - 15, the `level` state is 0 - 100 % */
+const MAX_LEVEL = 15;
 
 export class Lighting2 implements RfxDevice {
+    public static readonly subTypes = SUB_TYPES;
+
     public readonly commands = COMMANDS;
-    /** Was `Lighting2.prototype.subTypes` - an instance attribute, not a static one */
-    public readonly subTypes = SUB_TYPES;
 
     private readonly device: RfxLighting2;
 
@@ -39,28 +42,29 @@ export class Lighting2 implements RfxDevice {
             throw new Error('Invalid subtype');
         }
 
-        this.device = new RfxLighting2(comm, options.subtype);
+        this.device = new RfxLighting2(comm, subtypeNumber(lighting2, options.subtype));
     }
 
-    public sendCommand(cmd: string, level: ioBroker.StateValue | CommandCallback, callback?: CommandCallback): void {
-        if (typeof level === 'function') {
-            callback = level;
-            level = 0;
-        }
-        if (cmd === 'state') {
-            // the old code checked an undefined variable `value` here
-            if (isOn(level)) {
-                this.device.switchOn(this.options.deviceId, callback);
-            } else {
-                this.device.switchOff(this.options.deviceId, callback);
+    public sendCommand(cmd: string, value: ioBroker.StateValue, callback: CommandCallback): void {
+        try {
+            if (cmd === 'state') {
+                if (isOn(value)) {
+                    this.device.switchOn(this.options.deviceId, callback);
+                } else {
+                    this.device.switchOff(this.options.deviceId, callback);
+                }
+            } else if (cmd === 'level') {
+                const level = Math.min(Math.max(Math.round((Number(value) * MAX_LEVEL) / 100), 0), MAX_LEVEL);
+                this.device.setLevel(this.options.deviceId, level, callback);
+            } else if (
+                !this.commands.includes(cmd) ||
+                !callTransmitter(this.device, cmd, this.options.deviceId, callback)
+            ) {
+                this.log?.warn(`Unknown command: ${cmd}`);
+                callback(`Unknown command: ${cmd}`);
             }
-        } else if (cmd === 'level') {
-            this.device.setLevel(this.options.deviceId, Math.round(Number(level) / 16), callback);
-        } else if (!this.commands.includes(cmd)) {
-            this.log?.warn(`Unknown command: ${cmd}`);
-            callback?.(`Unknown command: ${cmd}`);
-        } else {
-            callDeviceMethod(this.device, cmd, this.options.deviceId, callback);
+        } catch (e) {
+            callback(e);
         }
     }
 
@@ -82,10 +86,6 @@ export class Lighting2 implements RfxDevice {
         });
 
         for (const command of this.commands) {
-            if (command === 'level') {
-                continue;
-            }
-
             objs.push({
                 _id: `${id}.${command}`,
                 common: {
@@ -189,12 +189,12 @@ export class Lighting2 implements RfxDevice {
         return objs;
     }
 
-    public getStates(prefix: string, event: RfxEvent): StateTask[] | undefined {
+    public getStates(prefix: string, event: RfxEvent): StateTask[] {
         //  event = {
         //     subtype: data[0],
         //     seqnbr: data[1],
         //     id: "0x" + self.dumpHex(idBytes, false).join(""),
-        //     unitcode: data[6],
+        //     unitCode: data[6],
         //     commandNumber: data[7],
         //     command: commands[data[7]] || "Unknown",
         //     level: data[8],
@@ -211,6 +211,7 @@ export class Lighting2 implements RfxDevice {
 
         const states: StateTask[] = [];
         const id = prefix + this.options.deviceId.replace('/', '_');
+        const level = Math.round(((event.level ?? 0) / MAX_LEVEL) * 100);
         states.push({ id: `${id}.rssi`, val: { val: event.rssi ?? null, ack: true } });
 
         switch (event.commandNumber) {
@@ -225,7 +226,7 @@ export class Lighting2 implements RfxDevice {
                 break;
 
             case 2: // Set Level
-                states.push({ id: `${id}.level`, val: { val: ((event.level ?? 0) / 16) * 100, ack: true } });
+                states.push({ id: `${id}.level`, val: { val: level, ack: true } });
                 break;
 
             case 3: // Group Off
@@ -237,13 +238,12 @@ export class Lighting2 implements RfxDevice {
                 break;
 
             case 5: // Set Group Level
-                states.push({ id: `${id}.groupLevel`, val: { val: ((event.level ?? 0) / 16) * 100, ack: true } });
+                states.push({ id: `${id}.groupLevel`, val: { val: level, ack: true } });
                 break;
 
             default:
-                // the old code referenced an undefined variable `data` here
                 this.log?.warn(`Unrecognised Lighting2 command ${event.commandNumber?.toString(16)}`);
-                return;
+                break;
         }
 
         return states;

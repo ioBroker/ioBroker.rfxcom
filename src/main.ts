@@ -1,9 +1,10 @@
 import * as utils from '@iobroker/adapter-core';
-import { RfxCom, Rfy, type TransmitCallback } from 'rfxcom';
+import { RfxCom, Rfy, rfy } from 'rfxcom';
 import type { SerialPort as SerialPortClass } from 'serialport';
 
 import { Curtain1 } from './lib/curtain1';
 import { Lighting1 } from './lib/lighting1';
+import { Lighting2 } from './lib/lighting2';
 import { Lighting3 } from './lib/lighting3';
 import { RFY } from './lib/rfy';
 import { Weight } from './lib/weight';
@@ -12,7 +13,6 @@ import {
     type ConfigDevice,
     type DeviceClass,
     type DeviceObject,
-    type DeviceOptions,
     type RfxDevice,
     type RfxEvent,
     type StateTask,
@@ -21,11 +21,12 @@ import {
 const ADAPTER_NAME = 'rfxcom';
 
 /** Device classes by type. The type is the `type` column in the config or the capitalized event name */
-const DEVICES: Record<string, DeviceClass & { subTypes?: string[] }> = {
+const DEVICES: Record<string, DeviceClass> = {
     RFY,
     Lighting3,
     Curtain1,
     Lighting1,
+    Lighting2,
     Weight,
 };
 
@@ -121,34 +122,25 @@ interface DeviceMessage {
     type?: string;
     deviceId: string;
     unitCode: string;
+    /** The admin sends the table row with `subType` */
+    subType?: string;
+    /** Name of the attribute in the old HTML admin */
     subtype?: string;
 }
 
+/** Device ID as rfxcom reports it in `rfyremoteslist`, e.g. `0x0A0B0C/1` (lower case) */
 function device2string(device: Pick<ConfigDevice, 'deviceId' | 'unitCode'>): string {
-    let id = parseInt(device.deviceId, 16).toString(16);
-    if (id.length < 2) {
-        id = `00000${id}`;
-    } else if (id.length < 3) {
-        id = `0000${id}`;
-    } else if (id.length < 4) {
-        id = `000${id}`;
-    } else if (id.length < 5) {
-        id = `00${id}`;
-    } else if (id.length < 6) {
-        id = `0${id}`;
-    }
-    id = `0x${id.substring(0, 6)}`;
-    id += `/${parseInt(device.unitCode, 10)}`;
-    return id;
+    const id = parseInt(device.deviceId, 16).toString(16).padStart(6, '0').substring(0, 6);
+    return `0x${id}/${parseInt(device.unitCode, 10)}`;
 }
+
+/** Commands that write a value and not a button press */
+const VALUE_COMMANDS = ['state', 'level'];
 
 class RfxcomAdapter extends utils.Adapter {
     private channels: Record<string, ioBroker.Object> = {};
     private inclusionOn = false;
     private inclusionTimeout: ioBroker.Timeout | null | undefined = null;
-    private readonly lastReceived: Record<string, number> = {};
-    /** Never started, but cleared on unload */
-    private repairInterval: ioBroker.Interval | null | undefined = null;
     private connection: boolean | null = null;
     private readonly devices: Record<string, RfxDevice> = {};
     private stateTasks: StateTask[] = [];
@@ -172,11 +164,6 @@ class RfxcomAdapter extends utils.Adapter {
     private onUnload(callback: () => void): void {
         this.setConnState(false);
         try {
-            if (this.repairInterval) {
-                this.clearInterval(this.repairInterval);
-                this.repairInterval = null;
-            }
-
             if (this.comm) {
                 this.comm.close();
                 this.comm.removeAllListeners();
@@ -190,26 +177,37 @@ class RfxcomAdapter extends utils.Adapter {
 
     // is called if a subscribed state changes
     private onStateChange(id: string, state: ioBroker.State | null | undefined): void {
-        if (!state || state.ack || !this.comm) {
+        if (!state || state.ack) {
+            return;
+        }
+
+        if (id === `${this.namespace}.inclusionOn`) {
+            this.setInclusionState(state.val);
+            void this.setStateAsync('inclusionOn', this.inclusionOn, true);
+            this.log.info(`Inclusion mode is ${this.inclusionOn ? 'active' : 'inactive'}`);
+            return;
+        }
+
+        if (!this.comm) {
             return;
         }
 
         const parts = id.split('.');
         const command = parts.pop()!;
         const channel = parts.join('.');
+        const device = this.getDeviceOfChannel(channel);
 
-        // BUG (kept): `inclusionOn` lands here too and is reported as unknown device, so the inclusion
-        // mode can only be changed by restarting the adapter
-        if (!this.channels[channel] || !this.devices[channel]) {
+        if (!device) {
             this.log.warn(`Unknown device "${channel}"`);
-        } else if (!this.devices[channel].commands.includes(command)) {
+        } else if (!device.commands.includes(command) && !VALUE_COMMANDS.includes(command)) {
             this.log.warn(`Unknown command "${command}" for "${channel}"`);
         } else {
-            this.devices[channel].sendCommand(command, state.val, err => {
+            device.sendCommand(command, state.val, err => {
                 if (err) {
                     this.log.error(`Cannot control "${command}" for "${channel}": ${errorText(err)}`);
                 } else {
-                    void this.setForeignStateAsync(id, false, true);
+                    // buttons are reset, values are acknowledged
+                    void this.setForeignStateAsync(id, VALUE_COMMANDS.includes(command) ? state.val : false, true);
                 }
             });
         }
@@ -217,19 +215,9 @@ class RfxcomAdapter extends utils.Adapter {
 
     private onObjectChange(id: string, obj: ioBroker.Object | null | undefined): void {
         if (!obj) {
-            if (this.channels[id]) {
-                delete this.channels[id];
-            }
-            if (this.lastReceived[id]) {
-                delete this.lastReceived[id];
-            }
+            delete this.channels[id];
+            delete this.devices[id];
         } else if (obj.type === 'channel') {
-            if (obj.native.autoRepair) {
-                this.lastReceived[id] = Date.now();
-            } else if (this.lastReceived[id]) {
-                delete this.lastReceived[id];
-            }
-
             this.channels[id] = obj;
         }
     }
@@ -253,14 +241,12 @@ class RfxcomAdapter extends utils.Adapter {
                 break;
 
             case 'program':
-                // find or create device with such DeviceID
                 if (obj.message) {
                     this.program(obj, obj.message as DeviceMessage);
                 }
                 break;
 
             case 'erase':
-                // find or create device with such DeviceID
                 if (obj.message) {
                     this.erase(obj, obj.message as DeviceMessage);
                 }
@@ -269,14 +255,7 @@ class RfxcomAdapter extends utils.Adapter {
             case 'eraseAll':
                 if (obj.message) {
                     if ((obj.message as DeviceMessage).type !== 'RFY') {
-                        if (obj.callback) {
-                            this.sendTo(
-                                obj.from,
-                                obj.command,
-                                [{ result: 'Only RFY devices can be erased' }],
-                                obj.callback,
-                            );
-                        }
+                        this.reply(obj, 'Only RFY devices can be erased');
                         return;
                     }
                     if (this.rfyAll) {
@@ -284,13 +263,11 @@ class RfxcomAdapter extends utils.Adapter {
                             if (err) {
                                 this.log.error(`Cannot eraseAll: ${errorText(err)}`);
                             }
-                            if (obj.callback) {
-                                this.sendTo(obj.from, obj.command, [{ result: err }], obj.callback);
-                            }
+                            this.reply(obj, err);
                             this.listRemotes();
                         });
-                    } else if (obj.callback) {
-                        this.sendTo(obj.from, obj.command, [{ result: 'no connection to RfxCom' }], obj.callback);
+                    } else {
+                        this.reply(obj, 'no connection to RfxCom');
                     }
                 }
                 break;
@@ -298,6 +275,13 @@ class RfxcomAdapter extends utils.Adapter {
             default:
                 this.log.error(`Unknown command: ${obj.command}`);
                 break;
+        }
+    }
+
+    /** Answer of `program`, `erase` and `eraseAll` */
+    private reply(obj: ioBroker.Message, result: unknown): void {
+        if (obj.callback) {
+            this.sendTo(obj.from, obj.command, [{ result: result ? errorText(result) : result }], obj.callback);
         }
     }
 
@@ -323,7 +307,7 @@ class RfxcomAdapter extends utils.Adapter {
             this.sendTo(obj.from, obj.command, ports, obj.callback);
         } catch (e) {
             this.sendTo(obj.from, obj.command, [], obj.callback);
-            this.log.error(String(e));
+            this.log.error(errorText(e));
         }
     }
 
@@ -343,95 +327,80 @@ class RfxcomAdapter extends utils.Adapter {
         this.sendTo(obj.from, obj.command, result, obj.callback);
     }
 
+    /** Requests the list of RFY remotes; the answer arrives as `rfyremoteslist` event */
     private listRemotes(): void {
-        // request list of devices
-        // BUG (kept): `rfyAll` is null if no COM port is configured; this throws then
-        this.rfyAll!.listRemotes(err => err && this.log.error(`Cannot ask listRemotes: ${errorText(err)}`));
+        this.rfyAll?.listRemotes(err => err && this.log.error(`Cannot ask listRemotes: ${errorText(err)}`));
+    }
+
+    /** Device of a `program`/`erase` message: the configured one or a temporary one */
+    private getDeviceOfMessage(obj: ioBroker.Message, message: DeviceMessage): RfxDevice | null {
+        const id = `${this.namespace}.${message.type || 'rfy'}.${message.deviceId}_${message.unitCode}`;
+        if (this.devices[id]) {
+            return this.devices[id];
+        }
+        const DeviceType = message.type ? DEVICES[message.type] : undefined;
+        if (!DeviceType) {
+            this.log.error(`Unknown type "${message.type}"`);
+            this.reply(obj, `Unknown type "${message.type}"`);
+            return null;
+        }
+        try {
+            return new DeviceType(
+                this.comm!,
+                {
+                    deviceId: `${message.deviceId}/${message.unitCode}`,
+                    subtype: message.subType ?? message.subtype,
+                },
+                this.log,
+            );
+        } catch (e) {
+            this.reply(obj, e);
+            return null;
+        }
     }
 
     private program(obj: ioBroker.Message, message: DeviceMessage): void {
-        const id = `${this.namespace}.${message.type || 'rfy'}.${message.deviceId}_${message.unitCode}`;
-        const device = this.devices[id];
-        if (device) {
-            if (this.connection) {
-                // BUG (kept): devices without `program()` (Weight) throw a TypeError here
-                device.program!(err => {
-                    if (err) {
-                        this.log.error(`Cannot program "${id}": ${errorText(err)}`);
-                    }
-                    if (obj.callback) {
-                        this.sendTo(obj.from, obj.command, [{ result: err }], obj.callback);
-                    }
-                    this.listRemotes();
-                });
-            } else {
-                this.sendTo(obj.from, obj.command, [{ result: 'No connection to RfxCom' }], obj.callback);
-            }
-        } else if (this.connection) {
-            const DeviceType = message.type ? DEVICES[message.type] : undefined;
-            if (DeviceType) {
-                // create device
-                // BUG (kept): the admin sends `subType`, but `subtype` is read here
-                const newDevice = new DeviceType(
-                    this.comm!,
-                    {
-                        deviceId: `${message.deviceId}/${message.unitCode}`,
-                        subtype: message.subtype,
-                    },
-                    this.log,
-                );
-
-                newDevice.program!((err: unknown) => {
-                    if (err) {
-                        this.log.error(`Cannot program "${message.deviceId}/${message.unitCode}": ${errorText(err)}`);
-                    }
-                    if (obj.callback) {
-                        this.sendTo(obj.from, obj.command, [{ result: err }], obj.callback);
-                    }
-                    this.listRemotes();
-                });
-            } else {
-                this.log.error(`Unknown type "${message.type}"`);
-                this.sendTo(obj.from, obj.command, [{ result: `Unknown type "${message.type}"` }], obj.callback);
-            }
-        } else {
-            this.sendTo(obj.from, obj.command, [{ result: 'No connection to RfxCom' }], obj.callback);
+        if (!this.connection) {
+            this.reply(obj, 'No connection to RfxCom');
+            return;
         }
+        const device = this.getDeviceOfMessage(obj, message);
+        if (!device) {
+            return;
+        }
+        if (!device.program) {
+            this.reply(obj, `Devices of type "${message.type}" cannot be programmed`);
+            return;
+        }
+        device.program(err => {
+            if (err) {
+                this.log.error(`Cannot program "${message.deviceId}/${message.unitCode}": ${errorText(err)}`);
+            }
+            this.reply(obj, err);
+            this.listRemotes();
+        });
     }
 
     private erase(obj: ioBroker.Message, message: DeviceMessage): void {
         if (message.type !== 'RFY') {
-            if (obj.callback) {
-                this.sendTo(obj.from, obj.command, [{ result: 'Only RFY devices can be erased' }], obj.callback);
-            }
+            this.reply(obj, 'Only RFY devices can be erased');
             return;
         }
-        const id = `${this.namespace}.${message.type || 'rfy'}.${message.deviceId}_${message.unitCode}`;
-        const name = this.devices[id] ? id : `${message.deviceId}/${message.unitCode}`;
-        const callback: TransmitCallback = (err: unknown) => {
-            if (err) {
-                this.log.error(`Cannot erase "${name}": ${errorText(err)}`);
-            }
-            if (obj.callback) {
-                this.sendTo(obj.from, obj.command, [{ result: err }], obj.callback);
-            }
-            this.listRemotes();
-        };
-        if (this.devices[id]) {
-            this.devices[id].erase!(callback);
-        } else {
-            // create device
-            // BUG (kept): the admin sends `subType`, but `subtype` is read here
-            const newDevice = new RFY(
-                this.comm!,
-                {
-                    deviceId: `${message.deviceId}/${message.unitCode}`,
-                    subtype: message.subtype,
-                },
-                this.log,
-            );
-            newDevice.erase(callback);
+        if (!this.connection) {
+            this.reply(obj, 'No connection to RfxCom');
+            return;
         }
+        const device = this.getDeviceOfMessage(obj, message);
+        if (!device?.erase) {
+            return;
+        }
+        device.erase(err => {
+            if (err) {
+                this.log.error(`Cannot erase "${message.deviceId}/${message.unitCode}": ${errorText(err)}`);
+            }
+            this.reply(obj, err);
+            this.listRemotes();
+        });
     }
 
     private setConnState(isConnected: boolean): void {
@@ -481,91 +450,98 @@ class RfxcomAdapter extends utils.Adapter {
         this.log.debug(`[${event}]: ${JSON.stringify(data)}`);
     }
 
-    private syncStates(isChanged: boolean): void {
-        if (!this.stateTasks?.length) {
+    /** Writes the queued states one after another */
+    private syncStates(): void {
+        const task = this.stateTasks.shift();
+        if (!task) {
             return;
         }
-        const task = this.stateTasks.shift()!;
-
-        if (typeof task.val === 'object' && task.val !== null) {
-            // BUG (kept): the devices deliver `{ val, ack }`, which is written as "[object Object]"
-            // eslint-disable-next-line @typescript-eslint/no-base-to-string
-            task.val = task.val.toString();
-        }
-        if (isChanged) {
-            this.setForeignStateChanged(task.id, task.val, true, () => setImmediate(() => this.syncStates(isChanged)));
-        } else {
-            this.setForeignState(task.id, task.val, true, () => setImmediate(() => this.syncStates(isChanged)));
-        }
+        this.setForeignStateChanged(task.id, task.val, () => setImmediate(() => this.syncStates()));
     }
 
-    private getDevice(
-        deviceId: string | undefined,
-        unitCode: number | string | undefined,
-        type: string,
-        subType: number | string | undefined,
-    ): ioBroker.Object | null | undefined {
-        for (const id of Object.keys(this.channels)) {
-            if (this.channels[id].native.deviceId === deviceId && this.channels[id].native.unitCode === unitCode) {
-                if (!this.devices[id] && DEVICES[type]) {
-                    // BUG (kept): the arguments are shifted (`comm` is missing), so this always fails
-                    this.devices[id] = new DEVICES[type](
-                        `${deviceId}/${unitCode}` as unknown as RfxCom,
-                        subType as unknown as DeviceOptions,
-                    );
-                }
-                return this.channels[id];
-            }
+    /** Creates the device object for an existing channel, e.g. after a restart */
+    private getDeviceOfChannel(channelId: string): RfxDevice | null {
+        if (this.devices[channelId]) {
+            return this.devices[channelId];
+        }
+        const channel = this.channels[channelId];
+        // <adapter>.<instance>.<Type>.<deviceId>
+        const DeviceType = DEVICES[channelId.split('.')[2]];
+        if (!channel || !DeviceType || !this.comm) {
+            return null;
+        }
+        try {
+            this.devices[channelId] = new DeviceType(
+                this.comm,
+                {
+                    deviceId: channel.native.deviceId,
+                    subtype: channel.native.subtype,
+                },
+                this.log,
+            );
+        } catch (e) {
+            this.log.warn(`Cannot create device "${channelId}": ${(e as Error).message}`);
+            return null;
+        }
+        return this.devices[channelId];
+    }
+
+    /**
+     * Returns the device of a received event. Unknown devices are created in inclusion mode.
+     *
+     * @param type key of `DEVICES`
+     * @param deviceId device ID in the format of `DeviceOptions.deviceId`
+     * @param subtype numeric subtype of the event
+     */
+    private getReceivedDevice(type: string, deviceId: string, subtype: number | undefined): RfxDevice | null {
+        const prefix = `${this.namespace}.${type}.`;
+        const id = prefix + deviceId.replace('/', '_');
+        const device = this.getDeviceOfChannel(id);
+        if (device || !this.inclusionOn) {
+            return device;
         }
 
-        if (this.inclusionOn) {
-            const DeviceType = DEVICES[type];
-            if (DeviceType) {
-                const prefix = `${this.namespace}.${type}.`;
-                const idd = `${prefix}${deviceId}_${unitCode}`;
-
-                // BUG (kept): `subTypes` is no static attribute of the device classes, so this throws a TypeError
-                subType = DeviceType.subTypes![subType as number];
-                if (subType === undefined) {
-                    this.log.warn(`Unknown device subType for "${type}": ${String(subType)}`);
-                } else {
-                    this.devices[idd] = new DeviceType(
-                        this.comm!,
-                        {
-                            deviceId: `${deviceId}/${unitCode}`,
-                            subtype: subType,
-                        },
-                        this.log,
-                    );
-
-                    this.syncObjects(this.devices[idd].getObjects(prefix));
-                }
-            } else {
-                this.log.warn(`Unknown device type: ${type}`);
-            }
-            return undefined;
+        const DeviceType = DEVICES[type];
+        if (!DeviceType) {
+            this.log.warn(`Unknown device type: ${type}`);
+            return null;
         }
-        return null;
+        const subtypeName = subtype === undefined ? undefined : DeviceType.subTypes?.[subtype];
+        if (subtypeName === undefined) {
+            this.log.warn(`Unknown device subType for "${type}": ${subtype}`);
+            return null;
+        }
+        try {
+            this.devices[id] = new DeviceType(this.comm!, { deviceId, subtype: subtypeName }, this.log);
+        } catch (e) {
+            this.log.warn(`Cannot create device "${id}": ${(e as Error).message}`);
+            return null;
+        }
+        this.log.info(`New device included: ${id}`);
+        this.syncObjects(this.devices[id].getObjects(prefix));
+        return this.devices[id];
+    }
+
+    /** Writes the states of a received event */
+    private processDeviceEvent(type: string, deviceId: string, data: RfxEvent): void {
+        const device = this.getReceivedDevice(type, deviceId, data.subtype);
+
+        if (device?.getStates) {
+            const isStart = !this.stateTasks.length;
+            this.stateTasks = this.stateTasks.concat(device.getStates(`${this.namespace}.${type}.`, data));
+            if (isStart) {
+                this.syncStates();
+            }
+        } else {
+            this.log.debug(`${type} ignored: ${JSON.stringify(data)}`);
+        }
     }
 
     private processLighting(event: string, data: RfxEvent): void {
-        event = event[0].toUpperCase() + event.substring(1);
-        const dev = this.getDevice(data.housecode, data.unitcode, event, data.subtype);
-
-        if (dev) {
-            const isStart = !this.stateTasks.length;
-            // BUG (kept): `dev` is the channel object and has no `device`, so this throws a TypeError
-            const states = (dev as unknown as { device: RfxDevice }).device.getStates!(
-                `${this.namespace}.${event}.`,
-                data,
-            );
-            this.stateTasks = this.stateTasks.concat(states ?? []);
-            if (isStart) {
-                this.syncStates(true);
-            }
-        } else {
-            this.log.debug(`${event} ignored: ${JSON.stringify(data)}`);
-        }
+        const type = event[0].toUpperCase() + event.substring(1);
+        // lighting1: house code A-P + unit code, lighting2: hex ID + unit code
+        const deviceId = event === 'lighting1' ? `${data.houseCode}/${data.unitCode}` : `${data.id}/${data.unitCode}`;
+        this.processDeviceEvent(type, deviceId, data);
     }
 
     private processLighting5(_event: string, data: RfxEvent): void {
@@ -575,51 +551,21 @@ class RfxcomAdapter extends utils.Adapter {
         // data.unitcode
         // data.subtype
 
-        // The value is calculated, but never written anywhere
+        // Lighting5 devices are not supported yet; only unknown commands are reported
         switch (data.subtype) {
             case 0: // Lightwave RF
                 switch (data.commandNumber) {
-                    case 0:
-                    case 1:
-                    case 2:
-                    case 16:
-                        break;
-
-                    case 3:
-                    case 4:
-                    case 5:
-                    case 6:
-                    case 7:
-                        // BUG (kept): the old code wrote `msg.payload = 'Mood' + (evt.commandNumber - 2)` here.
-                        // Neither `msg` nor `evt` existed, so this threw a ReferenceError.
-                        throw new ReferenceError('msg is not defined');
-
                     case 17:
                     case 18:
                     case 19:
                         this.log.warn(`Unrecognised Lighting5 LightwaveRF command ${data.commandNumber.toString(16)}`);
                         break;
-
-                    default:
-                        return;
                 }
                 break;
 
-            case 2:
-            case 4: // BBSB & CONRAD
-                break;
-
             case 6: // TRC02
-                switch (data.commandNumber) {
-                    case 0:
-                    case 1:
-                    case 2:
-                    case 3:
-                        break;
-
-                    default:
-                        this.log.warn(`Unrecognised Lighting5 TRC02 command ${data.commandNumber?.toString(16)}`);
-                        return;
+                if (data.commandNumber === undefined || data.commandNumber > 3) {
+                    this.log.warn(`Unrecognised Lighting5 TRC02 command ${data.commandNumber?.toString(16)}`);
                 }
                 break;
         }
@@ -632,17 +578,9 @@ class RfxcomAdapter extends utils.Adapter {
         // data.unitcode
         // data.subtype
 
-        // The value (0 and 2: on, 1 and 3: off) was calculated, but never written anywhere
-        switch (data.commandNumber) {
-            case 0:
-            case 1:
-            case 2:
-            case 3:
-                break;
-
-            default:
-                this.log.warn(`Unrecognised Lighting6 command ${data.commandNumber?.toString(16)}`);
-                return;
+        // Lighting6 devices are not supported yet (0 and 2: on, 1 and 3: off); only unknown commands are reported
+        if (data.commandNumber === undefined || data.commandNumber > 3) {
+            this.log.warn(`Unrecognised Lighting6 command ${data.commandNumber?.toString(16)}`);
         }
     }
 
@@ -656,25 +594,9 @@ class RfxcomAdapter extends utils.Adapter {
         this.log.debug(`[${event}]: ${JSON.stringify(data)}`);
     }
 
-    private processWeight(event: string, data: RfxEvent): void {
-        // BUG (kept): `weight1` becomes `weight`, but the class is registered as `Weight`
-        event = event.replace(/\d$/, '');
-        const dev = this.getDevice(data.housecode, data.unitcode, event, data.subtype);
-
-        if (dev) {
-            const isStart = !this.stateTasks.length;
-            // BUG (kept): `dev` is the channel object and has no `device`, so this throws a TypeError
-            const states = (dev as unknown as { device: RfxDevice }).device.getStates!(
-                `${this.namespace}.${event}.`,
-                data,
-            );
-            this.stateTasks = this.stateTasks.concat(states ?? []);
-            if (isStart) {
-                this.syncStates(true);
-            }
-        } else {
-            this.log.debug(`${event} ignored: ${JSON.stringify(data)}`);
-        }
+    private processWeight(_event: string, data: RfxEvent): void {
+        // weight1 and weight2 are both handled by the class `Weight`; the scales have no unit code
+        this.processDeviceEvent('Weight', String(data.id), data);
     }
 
     private processEnergy(_event: string, _data: RfxEvent): void {
@@ -693,14 +615,14 @@ class RfxcomAdapter extends utils.Adapter {
     }
 
     private syncObjects(objs: DeviceObject[], callback?: () => void): void {
-        if (!objs?.length) {
+        const task = objs.shift();
+        if (!task) {
             callback?.();
             return;
         }
-        const task = objs.shift()!;
-        void this.getForeignObject(task._id!, (_err, obj) => {
+        void this.getForeignObject(task._id, (_err, obj) => {
             if (!obj) {
-                this.setForeignObject(task._id!, task as unknown as ioBroker.SettableObject, () =>
+                this.setForeignObject(task._id, task as unknown as ioBroker.SettableObject, () =>
                     setImmediate(() => this.syncObjects(objs, callback)),
                 );
             } else {
@@ -720,7 +642,7 @@ class RfxcomAdapter extends utils.Adapter {
         comm.on('ready', () => this.setConnState(true));
 
         comm.on('disconnect', (msg: unknown) => {
-            this.log.debug(`Disconnected: ${String(msg)}`);
+            this.log.debug(`Disconnected: ${errorText(msg)}`);
             this.setConnState(false);
         });
 
@@ -739,29 +661,29 @@ class RfxcomAdapter extends utils.Adapter {
 
         comm.on('status', (status: unknown) => this.log.debug(`JSON Status: ${JSON.stringify(status)}`));
 
-        comm.on('rfyremoteslist', (list: { deviceId: string }[]) => {
-            // BUG (kept): `list.length` is read before `list` is checked
+        comm.on('rfyremoteslist', (list: { deviceId: string }[] | undefined) => {
+            if (!list) {
+                return;
+            }
             this.log.debug(`rfyremoteslist delivered ${list.length} devices`);
 
-            if (list) {
-                for (const remote of list) {
-                    // try to find this device
-                    const configDevice = this.config.devices.find(device => remote.deviceId === device2string(device));
-                    if (configDevice) {
-                        configDevice.found = true;
-                    } else {
-                        this.log.warn(
-                            `Device "${remote.deviceId}" found in RfxCom, but not found in the configuration`,
-                        );
-                    }
+            for (const remote of list) {
+                // try to find this device. rfxcom reports the ID in upper case
+                const configDevice = this.config.devices.find(
+                    device => remote.deviceId.toLowerCase() === device2string(device),
+                );
+                if (configDevice) {
+                    configDevice.found = true;
+                } else {
+                    this.log.warn(`Device "${remote.deviceId}" found in RfxCom, but not found in the configuration`);
                 }
+            }
 
-                for (const device of this.config.devices) {
-                    if (!device.found) {
-                        this.log.warn(
-                            `Device "${device.name}(${device2string(device)}) " found in configuration, but not found in the RfxCom`,
-                        );
-                    }
+            for (const device of this.config.devices) {
+                if (device.type === 'RFY' && !device.found) {
+                    this.log.warn(
+                        `Device "${device.name}(${device2string(device)}) " found in configuration, but not found in the RfxCom`,
+                    );
                 }
             }
         });
@@ -769,25 +691,33 @@ class RfxcomAdapter extends utils.Adapter {
         for (const event of Object.keys(SUPPORTED_EVENTS)) {
             comm.on(event, (e: RfxEvent) => {
                 this.log.debug(`Event "${event}": ${JSON.stringify(e)}`);
-                this[SUPPORTED_EVENTS[event]](event, e);
+                try {
+                    this[SUPPORTED_EVENTS[event]](event, e);
+                } catch (err) {
+                    this.log.error(`Cannot process event "${event}": ${errorText(err)}`);
+                }
             });
         }
 
         comm.initialise(() => {
             this.log.info(`RfxCom initialised on ${comm.device}`);
-            this.rfyAll?.listRemotes(err => err && this.log.error(`Cannot ask listRemotes: ${errorText(err)}`));
+            this.listRemotes();
         });
 
-        this.rfyAll = new Rfy(comm, 'RFY');
+        this.rfyAll = new Rfy(comm, rfy.RFY);
 
         let objs: DeviceObject[] = [];
 
-        // create rfy devices
+        // create the configured "control only" devices
         for (const device of this.config.devices) {
             const DeviceType = DEVICES[device.type];
-            if (DeviceType) {
-                const prefix = `${this.namespace}.${device.type}.`;
-                const id = `${prefix}${device.deviceId}_${device.unitCode}`;
+            if (!DeviceType) {
+                this.log.warn(`Unknown device type: ${device.type}`);
+                continue;
+            }
+            const prefix = `${this.namespace}.${device.type}.`;
+            const id = `${prefix}${device.deviceId}_${device.unitCode}`;
+            try {
                 this.devices[id] = new DeviceType(
                     comm,
                     {
@@ -796,12 +726,12 @@ class RfxcomAdapter extends utils.Adapter {
                     },
                     this.log,
                 );
-
-                // BUG (kept): `objs` is added twice, so the objects of the previous devices are written again
-                objs = objs.concat(objs, this.devices[id].getObjects(prefix, device.name));
-            } else {
-                this.log.warn(`Unknown device type: ${device.type}`);
+            } catch (e) {
+                this.log.warn(`Cannot create device "${device.name}": ${(e as Error).message}`);
+                continue;
             }
+
+            objs = objs.concat(this.devices[id].getObjects(prefix, device.name));
         }
 
         this.syncObjects(objs);
@@ -810,6 +740,7 @@ class RfxcomAdapter extends utils.Adapter {
     private async onReady(): Promise<void> {
         // older instances stored the value as string
         this.config.inclusionTimeout = parseInt(String(this.config.inclusionTimeout), 10) || 0;
+        this.config.devices ||= [];
 
         const state = await this.getStateAsync('inclusionOn');
         this.setInclusionState(state ? state.val : false);

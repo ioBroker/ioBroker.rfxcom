@@ -17,18 +17,19 @@ export interface ConfigDevice {
 
 /** Options for the constructor of a device class */
 export interface DeviceOptions {
-    /** `<deviceId>/<unitCode>` */
+    /** `<deviceId>/<unitCode>`, e.g. `0x0A0B0C/1` (RFY), `A/1` (Lighting1) or `0x1234` (Weight) */
     deviceId: string;
+    /** Name of the subtype, e.g. `RFY` or `ARC` */
     subtype?: string;
 }
 
 /** Data of an `rfxcom` receive event, e.g. `lighting1` or `weight1` */
 export interface RfxEvent {
-    subtype?: number | string;
+    subtype?: number;
     id?: string;
     seqnbr?: number;
-    housecode?: string;
-    unitcode?: number | string;
+    houseCode?: string;
+    unitCode?: number;
     commandNumber?: number;
     command?: string;
     level?: number;
@@ -41,15 +42,12 @@ export interface RfxEvent {
 /** Entry of the queue written by `syncStates()` */
 export interface StateTask {
     id: string;
-    val: ioBroker.StateValue | ioBroker.SettableState;
+    val: ioBroker.SettableState;
 }
 
-/**
- * Object created by `getObjects()` of a device. Curtain1 has always written the ID into `common.id`
- * instead of `_id`, therefore everything is optional here.
- */
+/** Object created by `getObjects()` of a device */
 export interface DeviceObject {
-    _id?: string;
+    _id: string;
     type: 'channel' | 'state';
     common: Record<string, unknown>;
     native: Record<string, unknown>;
@@ -59,31 +57,48 @@ export type CommandCallback = (err?: unknown) => void;
 
 /** Common interface of all device classes in src/lib */
 export interface RfxDevice {
+    /** Button commands. Besides them, `state` (and `level` for dimmers) can be written */
     commands: string[];
-    sendCommand(cmd: string, value: ioBroker.StateValue | CommandCallback, callback?: CommandCallback): void;
+    sendCommand(cmd: string, value: ioBroker.StateValue, callback: CommandCallback): void;
     getObjects(prefix: string, name?: string): DeviceObject[];
-    getStates?(prefix: string, event: RfxEvent): StateTask[] | undefined;
+    getStates?(prefix: string, event: RfxEvent): StateTask[];
     program?(callback: TransmitCallback): void;
     erase?(callback: TransmitCallback): void;
     eraseAll?(callback: TransmitCallback): void;
 }
 
-export type DeviceClass = new (comm: RfxCom, options: DeviceOptions, log?: ioBroker.Logger) => RfxDevice;
-
-/**
- * Calls `device[cmd](...args)` exactly as the old JavaScript code did: if `cmd` is no method of
- * `device`, this throws a TypeError.
- */
-export function callDeviceMethod(device: object, cmd: string, ...args: unknown[]): void {
-    (device as Record<string, (...args: unknown[]) => unknown>)[cmd](...args);
+export interface DeviceClass {
+    new (comm: RfxCom, options: DeviceOptions, log?: ioBroker.Logger): RfxDevice;
+    /** Subtype names by number, as received in events. Only for devices that can be received */
+    readonly subTypes?: readonly string[];
 }
 
 /**
- * Old check for "on" values, used by the `state` command of the devices.
- * BUG (kept): the boolean `true` is not treated as "on".
+ * Calls the method `cmd` of an rfxcom transmitter.
+ *
+ * @returns false if the transmitter has no such method
  */
+export function callTransmitter(transmitter: object, cmd: string, ...args: unknown[]): boolean {
+    const method = (transmitter as Record<string, unknown>)[cmd];
+    if (typeof method !== 'function') {
+        return false;
+    }
+    (method as (...args: unknown[]) => unknown).apply(transmitter, args);
+    return true;
+}
+
+/** Converts the subtype name to the number expected by the rfxcom transmitters */
+export function subtypeNumber(subtypes: Readonly<Record<string, number>>, name: string): number {
+    const subtype = subtypes[name];
+    if (typeof subtype !== 'number') {
+        throw new Error(`Unknown subtype "${name}"`);
+    }
+    return subtype;
+}
+
+/** Check for "on" values, used by the `state` command of the devices */
 export function isOn(value: unknown): boolean {
-    return value === 'true' || value === '1' || value === 1 || value === 'on';
+    return value === true || value === 'true' || value === '1' || value === 1 || value === 'on';
 }
 
 /** Text of an error as the old code wrote it with `${err}` */

@@ -1,8 +1,9 @@
-import { Lighting1 as RfxLighting1, type RfxCom } from 'rfxcom';
+import { Lighting1 as RfxLighting1, lighting1, type RfxCom } from 'rfxcom';
 
 import {
-    callDeviceMethod,
+    callTransmitter,
     isOn,
+    subtypeNumber,
     type CommandCallback,
     type DeviceObject,
     type DeviceOptions,
@@ -11,6 +12,7 @@ import {
     type StateTask,
 } from './types';
 
+/** Subtype names by the number received in `lighting1` events (same order as in rfxcom) */
 const SUB_TYPES = [
     'X10',
     'ARC',
@@ -23,24 +25,26 @@ const SUB_TYPES = [
     'ENERGENIE_ENER010',
     'ENERGENIE_5_GANG',
     'COCO',
+    'HQ',
+    'OASE_FM',
 ];
 
 const COMMANDS = ['switchOn', 'switchOff', 'increaseLevel', 'decreaseLevel', 'chime'];
 
 export class Lighting1 implements RfxDevice {
+    public static readonly subTypes = SUB_TYPES;
+
     public readonly commands = COMMANDS;
-    /** Was `Lighting1.prototype.subTypes` - an instance attribute, not a static one */
-    public readonly subTypes = SUB_TYPES;
 
     private readonly device: RfxLighting1;
+    /** Device ID as array `[houseCode, unitCode]`; rfxcom splits a string "A/1" wrongly */
+    private readonly address: string[];
 
     public constructor(
         comm: RfxCom,
         private readonly options: DeviceOptions,
         private readonly log?: ioBroker.Logger,
     ) {
-        // The old constructor returned a half-initialized object in these cases, so the next call of a
-        // method failed with a TypeError. Throwing makes that failure explicit.
         if (!options?.deviceId) {
             log?.warn('No device id is defined');
             throw new Error('No device id is defined');
@@ -51,28 +55,33 @@ export class Lighting1 implements RfxDevice {
             throw new Error('Invalid subtype');
         }
 
-        this.device = new RfxLighting1(comm, options.subtype);
+        this.address = options.deviceId.split('/');
+        this.device = new RfxLighting1(comm, subtypeNumber(lighting1, options.subtype));
     }
 
-    public sendCommand(cmd: string, level: ioBroker.StateValue | CommandCallback, callback?: CommandCallback): void {
-        if (typeof level === 'function') {
-            callback = level;
-            level = 0;
+    public program(callback: CommandCallback): void {
+        try {
+            // only supported by OASE_FM, rfxcom throws for the other subtypes
+            this.device.program(this.address, callback);
+        } catch (e) {
+            callback(e);
         }
-        if (cmd === 'state') {
-            // The old code checked an undefined variable `value` here. This branch cannot be reached,
-            // because `state` is not in `commands`, which main.ts checks first.
-            if (isOn(level)) {
-                this.device.switchOn(this.options.deviceId, callback);
-            } else {
-                this.device.switchOff(this.options.deviceId, callback);
+    }
+
+    public sendCommand(cmd: string, value: ioBroker.StateValue, callback: CommandCallback): void {
+        try {
+            if (cmd === 'state') {
+                if (isOn(value)) {
+                    this.device.switchOn(this.address, callback);
+                } else {
+                    this.device.switchOff(this.address, callback);
+                }
+            } else if (!this.commands.includes(cmd) || !callTransmitter(this.device, cmd, this.address, callback)) {
+                this.log?.warn(`Unknown command: ${cmd}`);
+                callback(`Unknown command: ${cmd}`);
             }
-        } else if (!this.commands.includes(cmd)) {
-            this.log?.warn(`Unknown command: ${cmd}`);
-            callback?.(`Unknown command: ${cmd}`);
-        } else {
-            // BUG (kept): `increaseLevel`/`decreaseLevel` expect `(deviceId, roomNumber, callback)`
-            callDeviceMethod(this.device, cmd, this.options.deviceId, callback);
+        } catch (e) {
+            callback(e);
         }
     }
 
@@ -179,13 +188,13 @@ export class Lighting1 implements RfxDevice {
         return objs;
     }
 
-    public getStates(prefix: string, event: RfxEvent): StateTask[] | undefined {
-        // data = {
-        //    id: "0x" + self.dumpHex(data.slice(2, 4), false).join(""), // Redundant?
+    public getStates(prefix: string, event: RfxEvent): StateTask[] {
+        // event = {
+        //    id: "0x4101",
         //    subtype: data[0],
         //    seqnbr: data[1],
-        //    housecode: String.fromCharCode(data[2]).toUpperCase(),
-        //    unitcode: data[3],
+        //    houseCode: String.fromCharCode(data[2]).toUpperCase(),
+        //    unitCode: data[3],
         //    commandNumber: data[4],
         //    command: commands[data[4]] || "Unknown",
         //    rssi: (data[5] >> 4) & 0xf
@@ -224,12 +233,11 @@ export class Lighting1 implements RfxDevice {
                 break;
 
             case 5: // All Off
-                // BUG (kept): "All Off" sets `allOn` and "All On" sets `allOff`
-                states.push({ id: `${id}.allOn`, val: { val: true, ack: true } });
+                states.push({ id: `${id}.allOff`, val: { val: true, ack: true } });
                 break;
 
             case 6: // All On
-                states.push({ id: `${id}.allOff`, val: { val: true, ack: true } });
+                states.push({ id: `${id}.allOn`, val: { val: true, ack: true } });
                 break;
 
             case 7: // Chime
@@ -237,9 +245,8 @@ export class Lighting1 implements RfxDevice {
                 break;
 
             default:
-                // the old code referenced an undefined variable `data` here
                 this.log?.warn(`Unrecognised Lighting1 command ${event.commandNumber?.toString(16)}`);
-                return;
+                break;
         }
 
         return states;

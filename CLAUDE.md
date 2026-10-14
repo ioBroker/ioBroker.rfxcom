@@ -35,8 +35,7 @@ There is no `tasks.ts`/`gulpfile.js`: with JsonConfig no build step besides `tsc
 | --- | --- |
 | `src/main.ts` | the adapter: one `RfxcomAdapter extends utils.Adapter` class |
 | `src/lib/rfy.ts` | Somfy RTS (`rfxcom.Rfy`) - program/erase/eraseAll + blind commands |
-| `src/lib/lighting1.ts`, `lighting3.ts`, `curtain1.ts`, `weight.ts` | the other device classes |
-| `src/lib/lighting2.ts` | **not registered** in `DEVICES` - was never used |
+| `src/lib/lighting1.ts`, `lighting2.ts`, `lighting3.ts`, `curtain1.ts`, `weight.ts` | the other device classes |
 | `src/lib/types.ts` | `ConfigDevice`, `RfxDevice` (common device interface), helpers |
 | `src/lib/adapter-config.d.ts` | augments `ioBroker.AdapterConfig` |
 | `src/types/rfxcom.d.ts` | hand-written typings for the `rfxcom` package (it ships none) |
@@ -46,12 +45,16 @@ There is no `tasks.ts`/`gulpfile.js`: with JsonConfig no build step besides `tsc
 
 ### Devices
 
-`DEVICES` in `main.ts` maps a type name to a class implementing `RfxDevice` (`commands`, `sendCommand`, `getObjects`, optional `getStates`/`program`/`erase`/`eraseAll`). A device ID is `<deviceId>/<unitCode>`; objects live in `rfxcom.<i>.<Type>.<deviceId>_<unitCode>.<command>`.
+`DEVICES` in `main.ts` maps a type name to a class implementing `RfxDevice` (`commands`, `sendCommand`, `getObjects`, optional `getStates`/`program`/`erase`/`eraseAll`). `DeviceOptions.deviceId` is `<deviceId>/<unitCode>` (`0x0A0B0C/1` for RFY, `A/1` for Lighting1/Curtain1, `1/2` for Lighting3) or only the ID (`0x1234` for Weight). Objects live in `rfxcom.<i>.<Type>.<deviceId with "/" replaced by "_">.<state>`; the channel stores `native.deviceId` and `native.subtype`.
 
+- **rfxcom wants numeric subtypes.** The classes keep the name (`RFY`, `ARC`, ...) and convert it with `subtypeNumber(rfxcom.<packetType>, name)`. Received events carry the number; `DeviceClass.subTypes` (static) maps it back to the name.
+- Lighting1 and Curtain1 pass the device ID as array `[houseCode, unitCode]` to rfxcom, because rfxcom splits a string character by character.
+- RFY has two transmitters, one per `venetianBlindsMode` (`EU`/`US`), for the `venetian*EU`/`venetian*US` commands.
 - `start()` creates one instance per row of `native.devices` and writes the objects with `syncObjects()` (existing objects only get `native` and `common.name` updated).
-- `onStateChange()` maps `<channel>.<command>` to `devices[channel].sendCommand()` and resets the button to `false` (ack) on success. Only commands in `device.commands` are accepted.
-- Received events are dispatched by `SUPPORTED_EVENTS` to the `process*` methods. Most of them only log.
-- The constructors throw on missing `deviceId`/invalid `subtype`. The JS version returned a half-initialized object there, which failed with a TypeError at the next call.
+- `onStateChange()` maps `<channel>.<command>` to `sendCommand()`. Button commands (`device.commands`) are reset to `false` (ack), `state` and `level` are acknowledged with the written value. `inclusionOn` is handled there as well. Devices of existing channels are created on demand by `getDeviceOfChannel()` (e.g. received devices after a restart).
+- Received `lighting1`/`lighting2`/`weight1`/`weight2` events go through `processDeviceEvent()` → `getReceivedDevice()`: known channel → device, unknown device → only created while the inclusion mode is on. `getStates()` returns `{ val, ack }` objects which `syncStates()` writes one after another with `setForeignStateChanged`.
+- Every event handler runs in `try/catch`, so a broken telegram cannot crash the adapter.
+- The constructors throw on missing `deviceId`/invalid `subtype`.
 
 ### Messages (`onMessage`)
 
@@ -59,23 +62,12 @@ There is no `tasks.ts`/`gulpfile.js`: with JsonConfig no build step besides `tsc
 | --- | --- | --- |
 | `listUart` | old HTML admin | raw `SerialPort.list()` or `[{ comName: 'Not available' }]` |
 | `listPorts` | `comName` (`autocompleteSendTo`) | `[{ value, label }]` |
-| `program` / `erase` | Pair/Unpair buttons in the devices table | `[{ result: err }]`, message is the table row |
+| `program` / `erase` | Pair/Unpair buttons in the devices table | `[{ result: err }]`, message is the table row (`subType`, the old `subtype` is accepted too) |
 | `eraseAll` | "Erase all RFY devices" button, message `{ type: 'RFY' }` | `[{ result: err }]` |
 
-### Known bugs kept from the JS version
+### Not implemented
 
-The refactoring was a translation, not a redesign. These are marked with `BUG (kept)` in the code and should be fixed in separate commits:
-
-- `inclusionOn` written by the user is reported as "Unknown device" in `onStateChange()`; the inclusion mode is only read at startup.
-- `getDevice()` returns the channel object, but `processLighting()`/`processWeight()` call `dev.device.getStates()` on it → TypeError as soon as an event of a known device arrives. In inclusion mode `DEVICES[type].subTypes` (not static) throws as well; the device creation for existing channels passes shifted arguments.
-- `processWeight()` looks up `weight` instead of `Weight`; `processLighting5()` throws a ReferenceError for LightwaveRF mood commands (3-7).
-- `syncStates()` writes the `{ val, ack }` objects of `getStates()` as `"[object Object]"`.
-- `start()` concatenates `objs` twice, so earlier objects are written again.
-- `isOn()` does not treat boolean `true` as on (`state` command is unreachable anyway, it is not in `commands`).
-- Curtain1: `sendCommand` passed the value as rfxcom callback (the adapter callback never fires) and `getObjects()` writes `common.id` instead of `_id`.
-- Lighting3: rfxcom has no `program`, `increaseLevel`, `decreaseLevel`. Lighting1: `increaseLevel`/`decreaseLevel` get the callback as `roomNumber`. RFY: the `venetian*US/EU` commands do not exist in rfxcom.
-- `program`/`erase` read `message.subtype`, the admin sends `subType`, so unknown devices cannot be programmed.
-- Lighting1 `getStates()`: "All Off" sets `allOn` and vice versa.
+`processLighting4/5/6`, `processEnergy`, `processBlinds`, `processSensors` and `processEvents` only log. `lighting5`/`lighting6` values were calculated in the JS version but never written.
 
 ### Misc conventions
 

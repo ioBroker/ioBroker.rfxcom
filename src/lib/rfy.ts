@@ -18,11 +18,12 @@
 //     For example if the RTS device is paired using RFXmngr with ID=1 02 03 and Unit Code 1, the RTS device can be controlled with Homeseer using the same ID and unit code.
 //
 // Somfy RTS are registered trademarks of Somfy System, Inc.
-import { Rfy, type RfxCom, type TransmitCallback } from 'rfxcom';
+import { Rfy, rfy, type RfxCom, type TransmitCallback } from 'rfxcom';
 
 import {
-    callDeviceMethod,
+    callTransmitter,
     isOn,
+    subtypeNumber,
     type CommandCallback,
     type DeviceObject,
     type DeviceOptions,
@@ -46,15 +47,16 @@ export class RFY implements RfxDevice {
         'disableSunSensor',
     ];
 
+    /** Transmitter in the (default) EU venetian blinds mode */
     private readonly device: Rfy;
+    /** Transmitter in the US venetian blinds mode, used for the `venetian*US` commands */
+    private readonly deviceUS: Rfy;
 
     public constructor(
         comm: RfxCom,
         private readonly options: DeviceOptions,
         private readonly log?: ioBroker.Logger,
     ) {
-        // The old constructor returned a half-initialized object in these cases, so the next call of a
-        // method failed with a TypeError. Throwing makes that failure explicit.
         if (!options?.deviceId) {
             log?.warn('No device id is defined');
             throw new Error('No device id is defined');
@@ -72,7 +74,9 @@ export class RFY implements RfxDevice {
         //   RFYEXT - 0 - 0x0f
         //   ASA - 1 - 5
 
-        this.device = new Rfy(comm, options.subtype);
+        const subtype = subtypeNumber(rfy, options.subtype);
+        this.device = new Rfy(comm, subtype, { venetianBlindsMode: 'EU' });
+        this.deviceUS = new Rfy(comm, subtype, { venetianBlindsMode: 'US' });
     }
 
     public program(callback: TransmitCallback): void {
@@ -99,21 +103,29 @@ export class RFY implements RfxDevice {
         }
     }
 
-    public sendCommand(cmd: string, value: ioBroker.StateValue | CommandCallback, callback?: CommandCallback): void {
-        if (cmd === 'state') {
-            if (isOn(value)) {
-                this.device.up(this.options.deviceId, callback);
-            } else {
-                this.device.down(this.options.deviceId, callback);
+    public sendCommand(cmd: string, value: ioBroker.StateValue, callback: CommandCallback): void {
+        try {
+            if (cmd === 'state') {
+                if (isOn(value)) {
+                    this.device.up(this.options.deviceId, callback);
+                } else {
+                    this.device.down(this.options.deviceId, callback);
+                }
+                return;
             }
-        } else if (
-            !this.commands.includes(cmd) ||
-            typeof (this.device as unknown as Record<string, unknown>)[cmd] !== 'function'
-        ) {
-            this.log?.warn(`Unknown command: ${cmd}`);
-            callback?.(`Unknown command: ${cmd}`);
-        } else {
-            callDeviceMethod(this.device, cmd, this.options.deviceId, callback);
+            // rfxcom has `venetianOpen()` etc. and selects US or EU by the option `venetianBlindsMode`
+            const venetian = cmd.match(/^(venetian\w+)(US|EU)$/);
+            const transmitter = venetian?.[2] === 'US' ? this.deviceUS : this.device;
+            const method = venetian ? venetian[1] : cmd;
+            if (
+                !this.commands.includes(cmd) ||
+                !callTransmitter(transmitter, method, this.options.deviceId, callback)
+            ) {
+                this.log?.warn(`Unknown command: ${cmd}`);
+                callback(`Unknown command: ${cmd}`);
+            }
+        } catch (e) {
+            callback(e);
         }
     }
 
