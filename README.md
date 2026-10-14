@@ -34,7 +34,7 @@ To do that press the pair button just before inserting the battery and the devic
 
 <!--
 	Placeholder for the next version (at the beginning of the line):
-	### __WORK IN PROGRESS__
+	### **WORK IN PROGRESS**
 -->
 ## Changelog
 ### **WORK IN PROGRESS**
