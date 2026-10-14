@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "rfxcom",
-    "version": "3.0.0",
+    "version": "3.0.1",
     "news": {
+      "3.0.1": {
+        "en": "Added the missing sizes to the settings for all screen widths",
+        "de": "Fehlende Größen für alle Bildschirmbreiten hinzugefügt",
+        "ru": "Добавлены недостающие размеры в настройки для всех ширин экрана",
+        "pt": "Adição dos tamanhos faltantes em todas as telas",
+        "nl": "De ontbrekende formaten toegevoegd aan de instellingen voor alle schermbreedtes",
+        "fr": "Les tailles manquantes ont été ajoutées à toutes les largeurs d'écran",
+        "it": "Aggiunte le misure mancanti per tutte le larghezze",
+        "es": "Ha añadido las tallas que faltan a los ajustes de todos los anchos de pantalla",
+        "pl": "Dodano brakujące rozmiary do ustawień dla wszystkich szerokości ekranu",
+        "uk": "Додано відсутні розміри до налаштувань для всіх ширин екрану",
+        "zh-cn": "在所有屏幕宽度的设置中添加了缺失的尺寸"
+      },
       "3.0.0": {
         "en": "The adapter was refactored to TypeScript and JsonConfig\nBreaking change: Node.js >= 22, js-controller >= 6.0.11 and admin >= 7.6.17 are required\nFixed: the subtype was sent as text to the RFXtrx, so all subtypes except the first one (e.g. RFYEXT, ARC) were controlled wrongly\nFixed: Lighting1 and Curtain1 devices could not be controlled (wrong device ID format); Curtain1 objects were not created\nFixed: received Lighting1/Lighting2/Weight devices crashed the adapter and were never learned; the inclusion mode can be switched on and off now\nFixed: the `state` and `level` states of the devices and the venetian blind commands of RFY work now\nThe used serial port is reported to js-controller 8 (`registerUsedResource`), with a warning if another instance already uses it\nFixed: pairing of devices that were not saved yet, \"All Off\"/\"All On\" of Lighting1 were swapped, the Lighting2 dim level was scaled wrongly",
         "de": "Der Adapter wurde auf TypeScript und JSONConfig umgestellt\nAktuelle Änderung: Node.js >= 22, js-controller >= 6.0.11 und admin >= 7.6.17 sind nötig\nBehoben: Der Subtyp wurde als Text an den RFXTRX gesendet, also alle außer dem ersten (z. B. RFYEXT, ARC)\nBehoben: Lighting1 und Curtain1 waren nicht steuerbar (falsches ID-Format); Curtain1-Objekte wurden nicht erstellt\nBehoben: Empfangene Geräte stürzten den Adapter ab und wurden nie gelernt; der Inklusionsmodus kann jetzt ein- und ausgeschaltet werden\nBehoben: Status und Level der Geräte und die Jalousie-Befehle von RFY funktionieren jetzt\nDer genutzte Port wird an js-controller 8 (`registerUsedResource`) gemeldet, mit Warnung, falls ihn schon benutzt\nBehoben: Noch nicht gespeicherte Geräte koppeln, Lighting1 „All Off“ /\"All On“ vertauscht, Lighting2 falsch skaliert",

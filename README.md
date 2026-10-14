@@ -37,7 +37,7 @@ To do that press the pair button just before inserting the battery and the devic
 	### **WORK IN PROGRESS**
 -->
 ## Changelog
-### **WORK IN PROGRESS**
+### 3.0.1 (2026-10-14)
 * (@GermanBluefox) Added the missing sizes to the settings for all screen widths
 
 ### 3.0.0 (2026-10-14)
