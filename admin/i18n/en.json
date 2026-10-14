@@ -1,0 +1,23 @@
+{
+    "All RFY Devices will be deleted from RfxCom!": "All RFY Devices will be deleted from RfxCom!",
+    "Are you sure?": "Are you sure?",
+    "Cancel": "Cancel",
+    "Code": "Code",
+    "Com port": "Com port",
+    "Control only devices": "Control only devices",
+    "Device ID": "Device ID",
+    "Device ID for RFY or House code for Curtain or System code for lighting 3": "Device ID for RFY or House code for Curtain or System code for lighting 3",
+    "Erase all RFY devices": "Erase all RFY devices",
+    "Inclusion mode": "Inclusion mode",
+    "Inclusion mode timeout": "Inclusion mode timeout",
+    "Name": "Name",
+    "Ok": "Ok",
+    "Options": "Options",
+    "Pair": "Pair",
+    "RfxCom adapter settings": "RfxCom adapter settings",
+    "Sub-type": "Sub-type",
+    "Type": "Type",
+    "Unit code for RFY and Curtain or channel code for Lighting3": "Unit code for RFY and Curtain or channel code for Lighting3",
+    "Unpair": "Unpair",
+    "inclusion help": "sec (Set to 0 for manually control)"
+}

@@ -1,0 +1,23 @@
+{
+    "All RFY Devices will be deleted from RfxCom!": "Усі RFY-пристрої буде видалено з RfxCom!",
+    "Are you sure?": "Ви впевнені?",
+    "Cancel": "Скасувати",
+    "Code": "Код",
+    "Com port": "COM-порт",
+    "Control only devices": "Лише керовані пристрої",
+    "Device ID": "ID пристрою",
+    "Device ID for RFY or House code for Curtain or System code for lighting 3": "ID пристрою для RFY, код будинку для Curtain або системний код для Lighting3",
+    "Erase all RFY devices": "Видалити всі RFY-пристрої",
+    "Inclusion mode": "Режим додавання",
+    "Inclusion mode timeout": "Тайм-аут режиму додавання",
+    "Name": "Назва",
+    "Ok": "Ok",
+    "Options": "Параметри",
+    "Pair": "Сполучити",
+    "RfxCom adapter settings": "Налаштування адаптера RfxCom",
+    "Sub-type": "Підтип",
+    "Type": "Тип",
+    "Unit code for RFY and Curtain or channel code for Lighting3": "Код блока для RFY і Curtain або код каналу для Lighting3",
+    "Unpair": "Відʼєднати",
+    "inclusion help": "с (0 для ручного керування)"
+}

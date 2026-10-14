@@ -1,0 +1,23 @@
+{
+    "All RFY Devices will be deleted from RfxCom!": "所有 RFY 设备都将从 RfxCom 中删除！",
+    "Are you sure?": "你确定吗？",
+    "Cancel": "取消",
+    "Code": "代码",
+    "Com port": "通讯端口",
+    "Control only devices": "仅控制设备",
+    "Device ID": "设备 ID",
+    "Device ID for RFY or House code for Curtain or System code for lighting 3": "RFY 的设备 ID、Curtain 的房屋代码或 Lighting3 的系统代码",
+    "Erase all RFY devices": "删除所有 RFY 设备",
+    "Inclusion mode": "包含模式",
+    "Inclusion mode timeout": "包含模式超时",
+    "Name": "名称",
+    "Ok": "确定",
+    "Options": "选项",
+    "Pair": "配对",
+    "RfxCom adapter settings": "RfxCom 适配器设置",
+    "Sub-type": "子类型",
+    "Type": "类型",
+    "Unit code for RFY and Curtain or channel code for Lighting3": "RFY 和 Curtain 的单元代码或 Lighting3 的通道代码",
+    "Unpair": "取消配对",
+    "inclusion help": "sec（手动控制设置为0）"
+}

@@ -1,0 +1,155 @@
+{
+    "i18n": true,
+    "type": "tabs",
+    "items": {
+        "_options": {
+            "type": "panel",
+            "label": "Options",
+            "items": {
+                "_logo": {
+                    "type": "staticImage",
+                    "src": "rfxcom.png",
+                    "style": {
+                        "width": "64px"
+                    },
+                    "sm": 12,
+                    "md": 2,
+                    "lg": 1
+                },
+                "_header": {
+                    "type": "header",
+                    "text": "RfxCom adapter settings",
+                    "size": 4,
+                    "sm": 12,
+                    "md": 10,
+                    "lg": 11
+                },
+                "comName": {
+                    "type": "autocompleteSendTo",
+                    "command": "listPorts",
+                    "freeSolo": true,
+                    "label": "Com port",
+                    "newLine": true,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4
+                },
+                "inclusionTimeout": {
+                    "type": "number",
+                    "label": "Inclusion mode timeout",
+                    "help": "inclusion help",
+                    "min": 0,
+                    "newLine": true,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4
+                },
+                "_inclusionOn": {
+                    "type": "state",
+                    "oid": "inclusionOn",
+                    "control": "switch",
+                    "label": "Inclusion mode",
+                    "newLine": true,
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4
+                }
+            }
+        },
+        "_devices": {
+            "type": "panel",
+            "label": "Control only devices",
+            "items": {
+                "_eraseAll": {
+                    "type": "sendTo",
+                    "command": "eraseAll",
+                    "data": {
+                        "type": "RFY"
+                    },
+                    "label": "Erase all RFY devices",
+                    "variant": "outlined",
+                    "showProcess": true,
+                    "confirm": {
+                        "text": "All RFY Devices will be deleted from RfxCom!",
+                        "title": "Are you sure?",
+                        "ok": "Ok",
+                        "cancel": "Cancel"
+                    },
+                    "sm": 12,
+                    "md": 6,
+                    "lg": 4
+                },
+                "devices": {
+                    "type": "table",
+                    "newLine": true,
+                    "sm": 12,
+                    "items": [
+                        {
+                            "type": "text",
+                            "attr": "name",
+                            "title": "Name",
+                            "width": "30%",
+                            "default": ""
+                        },
+                        {
+                            "type": "select",
+                            "attr": "type",
+                            "title": "Type",
+                            "noTranslation": true,
+                            "options": [
+                                { "value": "RFY", "label": "RFY" },
+                                { "value": "Lighting3", "label": "Lighting3" },
+                                { "value": "Curtain1", "label": "Curtain1" }
+                            ],
+                            "default": "RFY"
+                        },
+                        {
+                            "type": "text",
+                            "attr": "deviceId",
+                            "title": "Device ID",
+                            "tooltip": "Device ID for RFY or House code for Curtain or System code for lighting 3",
+                            "default": ""
+                        },
+                        {
+                            "type": "text",
+                            "attr": "unitCode",
+                            "title": "Code",
+                            "tooltip": "Unit code for RFY and Curtain or channel code for Lighting3",
+                            "default": ""
+                        },
+                        {
+                            "type": "select",
+                            "attr": "subType",
+                            "title": "Sub-type",
+                            "noTranslation": true,
+                            "options": [
+                                { "value": "RFY", "label": "RFY" },
+                                { "value": "RFYEXT", "label": "RFYEXT" },
+                                { "value": "ASA", "label": "ASA" }
+                            ],
+                            "default": "RFY"
+                        },
+                        {
+                            "type": "sendTo",
+                            "attr": "_pair",
+                            "title": "Pair",
+                            "label": "Pair",
+                            "command": "program",
+                            "jsonData": "{\"name\": \"${data.name}\", \"type\": \"${data.type}\", \"deviceId\": \"${data.deviceId}\", \"unitCode\": \"${data.unitCode}\", \"subType\": \"${data.subType}\"}",
+                            "showProcess": true
+                        },
+                        {
+                            "type": "sendTo",
+                            "attr": "_unpair",
+                            "title": "Unpair",
+                            "label": "Unpair",
+                            "command": "erase",
+                            "jsonData": "{\"name\": \"${data.name}\", \"type\": \"${data.type}\", \"deviceId\": \"${data.deviceId}\", \"unitCode\": \"${data.unitCode}\", \"subType\": \"${data.subType}\"}",
+                            "showProcess": true
+                        }
+                    ]
+                }
+            }
+        }
+    }
+}

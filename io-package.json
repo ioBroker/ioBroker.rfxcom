@@ -13,7 +13,8 @@
         "it": "Risolto errore eliminando l'oggetto",
         "es": "Se corrigió el error al eliminar el objeto.",
         "pl": "Naprawiono błąd przez usunięcie obiektu",
-        "zh-cn": "通过删除对象修复错误"
+        "zh-cn": "通过删除对象修复错误",
+        "uk": "Виправлено помилку під час видалення об’єкта"
       },
       "2.0.1": {
         "en": "update packages\nBreaking change: no linux with 32 bit support",
@@ -25,19 +26,8 @@
         "it": "pacchetti di aggiornamento\nModifica importante: nessun linux con supporto a 32 bit",
         "es": "paquetes de actualización\nCambio rotundo: no linux con soporte de 32 bits",
         "pl": "pakiety aktualizacji\nPrzełomowa zmiana: brak linuxa z obsługą 32 bitów",
-        "zh-cn": "更新包\n重大变化：没有支持 32 位的 linux"
-      },
-      "2.0.0": {
-        "en": "update packages\nBreaking change: no linux with 32 bit support",
-        "de": "Pakete aktualisieren\nBreaking Change: kein Linux mit 32-Bit-Unterstützung",
-        "ru": "пакеты обновления\nКритическое изменение: нет Linux с поддержкой 32-битной версии",
-        "pt": "pacotes de atualização\nQuebrando a mudança: sem linux com suporte de 32 bits",
-        "nl": "update pakketten\nBrekende verandering: geen linux met 32 bit-ondersteuning",
-        "fr": "mettre à jour les packages\nChangement de rupture : pas de Linux avec support 32 bits",
-        "it": "pacchetti di aggiornamento\nModifica importante: nessun linux con supporto a 32 bit",
-        "es": "paquetes de actualización\nCambio rotundo: no linux con soporte de 32 bits",
-        "pl": "pakiety aktualizacji\nPrzełomowa zmiana: brak linuxa z obsługą 32 bitów",
-        "zh-cn": "更新包\n重大变化：没有支持 32 位的 linux"
+        "zh-cn": "更新包\n重大变化：没有支持 32 位的 linux",
+        "uk": "Оновлено пакети\nЗворотно несумісна зміна: 32-бітний Linux більше не підтримується"
       },
       "1.0.1": {
         "en": "Compact mode\nSupport of node 10 added\nRefactoring",
@@ -49,22 +39,10 @@
         "it": "Modalità compatta\nSupporto del nodo 10 aggiunto\nrefactoring",
         "es": "Modo compacto\nSoporte del nodo 10 agregado\nRefactorización",
         "pl": "Tryb kompaktowy\nDodano obsługę węzła 10\nRefaktoryzacja",
-        "zh-cn": "紧凑模式\n添加了对节点10的支持\n重构"
-      },
-      "0.2.0": {
-        "en": "initial commit",
-        "de": "Erste Version",
-        "ru": "Первая версия",
-        "pt": "commit inicial",
-        "nl": "initiële commit",
-        "fr": "validation initiale",
-        "it": "impegno iniziale",
-        "es": "Compromiso inicial",
-        "pl": "początkowe zatwierdzenie",
-        "zh-cn": "初始提交"
+        "zh-cn": "紧凑模式\n添加了对节点10的支持\n重构",
+        "uk": "Компактний режим\nДодано підтримку Node 10\nРефакторинг"
       }
     },
-    "title": "RfxCom",
     "titleLang": {
       "en": "RfxCom",
       "de": "RfxCom",
@@ -75,7 +53,8 @@
       "it": "RfxCom",
       "es": "RfxCom",
       "pl": "RfxCom",
-      "zh-cn": "RfxCom"
+      "zh-cn": "RfxCom",
+      "uk": "RfxCom"
     },
     "desc": {
       "en": "RFXtrx433XL USB HA controller",
@@ -87,8 +66,12 @@
       "it": "Controller HA USB RFXtrx433XL",
       "es": "Controlador RFXtrx433XL USB HA",
       "pl": "RFXtrx433XL Kontroler USB HA",
-      "zh-cn": "RFXtrx433XL USB HA 控制器"
+      "zh-cn": "RFXtrx433XL USB HA 控制器",
+      "uk": "USB-контролер RFXtrx433XL для домашньої автоматизації"
     },
+    "authors": [
+      "bluefox <dogafox@gmail.com>"
+    ],
     "platform": "Javascript/Node.js",
     "mode": "daemon",
     "icon": "rfxcom.png",
@@ -108,6 +91,7 @@
     "dataSource": "push",
     "tier": 2,
     "compact": true,
+    "nogit": true,
     "readme": "https://github.com/ioBroker/ioBroker.rfxcom/blob/master/README.md",
     "loglevel": "info",
     "stopBeforeUpdate": true,
@@ -119,7 +103,15 @@
     },
     "dependencies": [
       {
-        "js-controller": ">=2.0.0"
+        "js-controller": ">=6.0.11"
+      }
+    ],
+    "adminUI": {
+      "config": "json"
+    },
+    "globalDependencies": [
+      {
+        "admin": ">=7.6.17"
       }
     ]
   },

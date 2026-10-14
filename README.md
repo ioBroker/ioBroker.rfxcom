@@ -37,6 +37,9 @@ To do that press the pair button just before inserting the battery and the devic
 	### __WORK IN PROGRESS__
 -->
 ## Changelog
+### **WORK IN PROGRESS**
+* (bluefox) The adapter was refactored to TypeScript and JsonConfig
+* (bluefox) Breaking change: Node.js >= 22, js-controller >= 6.0.11 and admin >= 7.6.17 are required
 
 ### 2.0.2 (2021-11-10)
 * (bluefox) Fixed error by deleting of object

@@ -1,0 +1,23 @@
+{
+    "All RFY Devices will be deleted from RfxCom!": "Все RFY-устройства будут удалены из RfxCom!",
+    "Are you sure?": "Вы уверены?",
+    "Cancel": "Отмена",
+    "Code": "Код",
+    "Com port": "Имя порта",
+    "Control only devices": "Только управляемые устройства",
+    "Device ID": "ID устройства",
+    "Device ID for RFY or House code for Curtain or System code for lighting 3": "ID устройства для RFY, код дома для Curtain или системный код для Lighting3",
+    "Erase all RFY devices": "Удалить все RFY-устройства",
+    "Inclusion mode": "Режим присваивания адресов",
+    "Inclusion mode timeout": "Время для присваивания адресов",
+    "Name": "Имя",
+    "Ok": "Ok",
+    "Options": "Параметры",
+    "Pair": "Привязать",
+    "RfxCom adapter settings": "Настройки RfxCom драйвера",
+    "Sub-type": "Подтип",
+    "Type": "Тип",
+    "Unit code for RFY and Curtain or channel code for Lighting3": "Код блока для RFY и Curtain или код канала для Lighting3",
+    "Unpair": "Отвязать",
+    "inclusion help": "сек (Установите в ноль для ручного вкл./выключения)"
+}
