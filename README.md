@@ -37,7 +37,7 @@ To do that press the pair button just before inserting the battery and the devic
 	### **WORK IN PROGRESS**
 -->
 ## Changelog
-### **WORK IN PROGRESS**
+### 3.0.0 (2026-10-14)
 * (bluefox) The adapter was refactored to TypeScript and JsonConfig
 * (bluefox) Breaking change: Node.js >= 22, js-controller >= 6.0.11 and admin >= 7.6.17 are required
 * (bluefox) Fixed: the subtype was sent as text to the RFXtrx, so all subtypes except the first one (e.g. RFYEXT, ARC) were controlled wrongly
